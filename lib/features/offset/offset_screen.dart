@@ -59,17 +59,14 @@ class _OffsetScreenState extends State<OffsetScreen> {
       setState(() => _result = null);
       return;
     }
-    if (h <= 0 || w < 0 || pre < 0 || post < 0) {
+    if (h <= 0) {
       setState(() => _result = null);
-      if (h <= 0 && h != 0) {
-        _showValidationError('장애물 높이는 양수 값을 입력하세요');
-      } else if (w < 0 || pre < 0 || post < 0) {
-        _showValidationError('양수 값을 입력하세요');
-      }
+      if (h < 0) _showValidationError('장애물 높이는 양수 값을 입력하세요');
       return;
     }
-    if (h == 0) {
+    if (w < 0 || pre < 0 || post < 0) {
       setState(() => _result = null);
+      _showValidationError('양수 값을 입력하세요');
       return;
     }
 
@@ -358,6 +355,10 @@ class _OffsetScreenState extends State<OffsetScreen> {
           controller: ctrl,
           keyboardType:
               const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
+            LengthLimitingTextInputFormatter(8),
+          ],
           style: TextStyle(
             fontFamily: 'DM Mono',
             fontSize: 22,
@@ -808,16 +809,16 @@ class _OffsetScreenState extends State<OffsetScreen> {
       }
     } on CameraPermissionDeniedException {
       if (mounted) await _showPermissionDeniedDialog();
-    } on PlatformException catch (e) {
+    } on PlatformException {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('AR 측정 오류: ${e.message}')),
+          SnackBar(content: Text('AR 측정 중 오류가 발생했습니다')),
         );
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('AR 오류: $e')),
+          SnackBar(content: Text('AR 오류가 발생했습니다. 다시 시도해주세요')),
         );
       }
     }

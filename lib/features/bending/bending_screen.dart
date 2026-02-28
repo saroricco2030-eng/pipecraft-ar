@@ -69,12 +69,18 @@ class _BendingScreenState extends State<BendingScreen> {
     if (json != null) {
       try {
         final list = jsonDecode(json) as List;
-        final entries = list
-            .map((e) => _BendEntry.fromJson(e as Map<String, dynamic>))
-            .toList();
+        final entries = <_BendEntry>[];
+        for (final e in list) {
+          if (e is Map<String, dynamic>) {
+            entries.add(_BendEntry.fromJson(e));
+          }
+        }
         if (mounted) setState(() => _bends.addAll(entries));
-      } catch (_) {
-        // corrupted data — ignore
+      } catch (e) {
+        // 손상된 데이터 삭제 — 다음 저장 시 덮어씌움
+        debugPrint('BendingScreen: 저장 데이터 손상 — $e');
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove(_prefsKeyBends);
       }
     }
     if (mounted) setState(() {});
@@ -478,6 +484,10 @@ class _BendingScreenState extends State<BendingScreen> {
             controller: _insertController,
             keyboardType:
                 const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
+              LengthLimitingTextInputFormatter(8),
+            ],
             style: TextStyle(
               fontFamily: 'DM Mono',
               fontSize: 28,
@@ -1256,16 +1266,16 @@ class _BendingScreenState extends State<BendingScreen> {
                     }
                   } on CameraPermissionDeniedException {
                     if (mounted) await _showPermissionDeniedDialog();
-                  } on PlatformException catch (e) {
+                  } on PlatformException {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('AR 측정 오류: ${e.message}')),
+                        SnackBar(content: Text('AR 측정 중 오류가 발생했습니다')),
                       );
                     }
-                  } catch (e) {
+                  } catch (_) {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('AR 오류: $e')),
+                        SnackBar(content: Text('AR 오류가 발생했습니다. 다시 시도해주세요')),
                       );
                     }
                   }

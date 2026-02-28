@@ -59,16 +59,16 @@ class _ArScreenState extends State<ArScreen> {
       }
     } on CameraPermissionDeniedException {
       if (mounted) await _showPermissionDeniedDialog();
-    } on PlatformException catch (e) {
+    } on PlatformException {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('AR 측정 오류: ${e.message}')),
+          SnackBar(content: Text('AR 측정 중 오류가 발생했습니다')),
         );
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('AR 오류: $e')),
+          SnackBar(content: Text('AR 오류가 발생했습니다. 다시 시도해주세요')),
         );
       }
     }

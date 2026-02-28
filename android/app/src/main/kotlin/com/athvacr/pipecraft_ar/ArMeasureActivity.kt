@@ -246,7 +246,7 @@ class ArMeasureActivity : Activity(), GLSurfaceView.Renderer {
                 return
             } catch (e: Exception) {
                 Log.e(TAG, "AR session init failed", e)
-                showToastAndFinish("AR 세션 초기화 실패: ${e.message}")
+                showToastAndFinish("AR 세션 초기화에 실패했습니다")
                 return
             }
         }

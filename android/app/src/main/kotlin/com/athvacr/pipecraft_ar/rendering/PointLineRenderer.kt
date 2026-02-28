@@ -98,6 +98,7 @@ class PointLineRenderer {
     }
 
     private fun allocateBuffer(floatCount: Int): FloatBuffer {
+        require(floatCount in 1..1024) { "floatCount out of safe range: $floatCount" }
         return ByteBuffer.allocateDirect(floatCount * 4)
             .order(ByteOrder.nativeOrder())
             .asFloatBuffer()
