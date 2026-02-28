@@ -5,36 +5,12 @@ import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../core/constants/pipe_specs.dart';
+import '../../core/theme/app_theme.dart';
 import '../../services/ar_measure_service.dart';
 import '../bending/bending_calculator.dart';
 
-// ─── Design Tokens ──────────────────────────────────────
-const _bgColor = Color(0xFFF5F3F0);
-const _red = Color(0xFFC8102E);
-const _green = Color(0xFF1A7A4A);
-const _greenBg = Color(0xFFEBF7F1);
-const _text = Color(0xFF18181B);
-const _text2 = Color(0xFF71717A);
-const _text3 = Color(0xFFA1A1AA);
-const _border = Color(0xFFE4E2DE);
-const _headerBg = Color(0xFFF8F6F3);
-const _cardRadius = 12.0;
-
 const _angles = [30.0, 45.0, 60.0];
 final _pipeOds = pipeSpecs.keys.toList();
-
-BoxDecoration _cardDeco() => BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(_cardRadius),
-      border: Border.all(color: _border, width: 1),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.05),
-          blurRadius: 8,
-          offset: const Offset(0, 2),
-        ),
-      ],
-    );
 
 // ─────────────────────────────────────────────────────────
 
@@ -55,6 +31,7 @@ class _OffsetScreenState extends State<OffsetScreen> {
   double _selectedAngle = 45;
   OffsetResult? _result;
   List<bool> _stepsDone = [false, false, false, false, false];
+  bool _measuring = false;
 
   double get _springBack => springBack[_machine]?[_selectedOd]?.toDouble() ?? 2.0;
 
@@ -78,8 +55,23 @@ class _OffsetScreenState extends State<OffsetScreen> {
     final w = double.tryParse(_widthCtrl.text);
     final pre = double.tryParse(_preCtrl.text);
     final post = double.tryParse(_postCtrl.text);
-    if (h == null || w == null || pre == null || post == null) return;
-    if (h <= 0) return;
+    if (h == null || w == null || pre == null || post == null) {
+      setState(() => _result = null);
+      return;
+    }
+    if (h <= 0 || w < 0 || pre < 0 || post < 0) {
+      setState(() => _result = null);
+      if (h <= 0 && h != 0) {
+        _showValidationError('장애물 높이는 양수 값을 입력하세요');
+      } else if (w < 0 || pre < 0 || post < 0) {
+        _showValidationError('양수 값을 입력하세요');
+      }
+      return;
+    }
+    if (h == 0) {
+      setState(() => _result = null);
+      return;
+    }
 
     setState(() {
       _result = OffsetCalculator.calculate(
@@ -93,12 +85,37 @@ class _OffsetScreenState extends State<OffsetScreen> {
     });
   }
 
+  void _showValidationError(String msg) {
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), duration: const Duration(seconds: 2)),
+    );
+  }
+
+  void _copyResult() {
+    if (_result == null) return;
+    final r = _result!;
+    final setAngle = (_selectedAngle + _springBack).round();
+    final text =
+        '오프셋: B1=${r.b1Insert.round()}mm B2=${r.b2Insert.round()}mm'
+        ' | 세팅 $setAngle° | 총소요 ${r.totalLength.round()}mm';
+    Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('클립보드에 복사되었습니다'),
+        duration: Duration(seconds: 1),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final c = context.appColors;
+
     return Scaffold(
-      backgroundColor: _bgColor,
+      backgroundColor: c.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: c.card,
         elevation: 0,
         centerTitle: false,
         title: Row(
@@ -106,19 +123,16 @@ class _OffsetScreenState extends State<OffsetScreen> {
             Container(
               width: 8,
               height: 8,
-              decoration: const BoxDecoration(
-                color: _red,
-                shape: BoxShape.circle,
-              ),
+              decoration: BoxDecoration(color: c.primary, shape: BoxShape.circle),
             ),
             const SizedBox(width: 8),
-            const Text(
+            Text(
               'Offset Bending',
               style: TextStyle(
                 fontFamily: 'DM Sans',
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF1A1A1A),
+                color: c.text,
                 letterSpacing: 0.5,
               ),
             ),
@@ -134,35 +148,81 @@ class _OffsetScreenState extends State<OffsetScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildMachineToggle(),
+                  _buildMachineToggle(c),
+                  const SizedBox(height: 6),
+                  _buildSpringBackInfo(c),
                   const SizedBox(height: 16),
-                  _buildSectionLabel('관경 (MM)'),
+                  _buildSectionLabel('관경 (MM)', c),
                   const SizedBox(height: 8),
-                  _buildPipeChips(),
+                  _buildPipeChips(c),
                   const SizedBox(height: 16),
-                  _buildInputCard(),
+                  _buildInputCard(c),
                   const SizedBox(height: 16),
-                  _buildSectionLabel('오프셋 각도'),
+                  _buildSectionLabel('오프셋 각도', c),
                   const SizedBox(height: 8),
-                  _buildAngleButtons(),
+                  _buildAngleButtons(c),
                   const SizedBox(height: 20),
                   if (_result != null) ...[
-                    _buildResultCard(_result!),
+                    _buildResultCard(_result!, c),
                     const SizedBox(height: 12),
-                    _buildStepGuideCard(_result!),
+                    _buildStepGuideCard(_result!, c),
                     const SizedBox(height: 12),
                     _buildOffsetDiagram(
                       _result!,
                       double.tryParse(_heightCtrl.text) ?? 0,
                       double.tryParse(_widthCtrl.text) ?? 0,
+                      c,
                     ),
+                  ] else ...[
+                    _buildNoResultHint(c),
                   ],
                   const SizedBox(height: 16),
                 ],
               ),
             ),
           ),
-          _buildArButton(),
+          _buildArButton(c),
+        ],
+      ),
+    );
+  }
+
+  // ─── 스프링백 정보 ─────────────────────────────────────
+
+  Widget _buildSpringBackInfo(AppColors c) {
+    final sb = springBack[_machine]?[_selectedOd]?.toInt() ?? 0;
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: Text(
+        '현재 보정: ${_machine.label} · ${_selectedOd}mm → +$sb°',
+        style: TextStyle(
+          fontFamily: 'DM Sans',
+          fontSize: 12,
+          color: c.text3,
+        ),
+      ),
+    );
+  }
+
+  // ─── 결과 없음 안내 ────────────────────────────────────
+
+  Widget _buildNoResultHint(AppColors c) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: cardDeco(c),
+      child: Column(
+        children: [
+          Icon(Icons.info_outline, size: 32, color: c.text3.withValues(alpha: 0.5)),
+          const SizedBox(height: 8),
+          Text(
+            '유효한 값을 입력하면 결과가 표시됩니다',
+            style: TextStyle(
+              fontFamily: 'DM Sans',
+              fontSize: 13,
+              color: c.text3,
+            ),
+          ),
         ],
       ),
     );
@@ -170,9 +230,9 @@ class _OffsetScreenState extends State<OffsetScreen> {
 
   // ─── 기기 선택 토글 ────────────────────────────────────
 
-  Widget _buildMachineToggle() {
+  Widget _buildMachineToggle(AppColors c) {
     return Container(
-      decoration: _cardDeco(),
+      decoration: cardDeco(c),
       padding: const EdgeInsets.all(4),
       child: Row(
         children: Machine.values.map((m) {
@@ -187,8 +247,8 @@ class _OffsetScreenState extends State<OffsetScreen> {
                 duration: const Duration(milliseconds: 200),
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
-                  color: selected ? _red : Colors.transparent,
-                  borderRadius: BorderRadius.circular(_cardRadius - 2),
+                  color: selected ? c.primary : Colors.transparent,
+                  borderRadius: BorderRadius.circular(cardRadius - 2),
                 ),
                 alignment: Alignment.center,
                 child: Text(
@@ -197,7 +257,7 @@ class _OffsetScreenState extends State<OffsetScreen> {
                     fontFamily: 'DM Sans',
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: selected ? Colors.white : _text3,
+                    color: selected ? Colors.white : c.text3,
                   ),
                 ),
               ),
@@ -210,13 +270,13 @@ class _OffsetScreenState extends State<OffsetScreen> {
 
   // ─── 관경 칩 ───────────────────────────────────────────
 
-  Widget _buildPipeChips() {
+  Widget _buildPipeChips(AppColors c) {
     return SizedBox(
       height: 40,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: _pipeOds.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (context, i) {
           final od = _pipeOds[i];
           final selected = od == _selectedOd;
@@ -230,10 +290,10 @@ class _OffsetScreenState extends State<OffsetScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 18),
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: selected ? _text : Colors.white,
+                color: selected ? c.chipSelected : c.chipUnselected,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: selected ? _text : _border,
+                  color: selected ? c.chipSelected : c.border,
                 ),
               ),
               child: Text(
@@ -242,7 +302,7 @@ class _OffsetScreenState extends State<OffsetScreen> {
                   fontFamily: 'DM Mono',
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: selected ? Colors.white : _text2,
+                  color: selected ? (Theme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white) : c.text2,
                 ),
               ),
             ),
@@ -254,25 +314,25 @@ class _OffsetScreenState extends State<OffsetScreen> {
 
   // ─── 입력 카드 ─────────────────────────────────────────
 
-  Widget _buildInputCard() {
+  Widget _buildInputCard(AppColors c) {
     return Container(
-      decoration: _cardDeco(),
+      decoration: cardDeco(c),
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
           Row(
             children: [
-              Expanded(child: _inputField('장애물 높이 (mm)', _heightCtrl)),
+              Expanded(child: _inputField('장애물 높이 (mm)', _heightCtrl, c)),
               const SizedBox(width: 12),
-              Expanded(child: _inputField('장애물 폭 (mm)', _widthCtrl)),
+              Expanded(child: _inputField('장애물 폭 (mm)', _widthCtrl, c)),
             ],
           ),
           const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(child: _inputField('앞 여유 (mm)', _preCtrl)),
+              Expanded(child: _inputField('앞 여유 (mm)', _preCtrl, c)),
               const SizedBox(width: 12),
-              Expanded(child: _inputField('뒤 여유 (mm)', _postCtrl)),
+              Expanded(child: _inputField('뒤 여유 (mm)', _postCtrl, c)),
             ],
           ),
         ],
@@ -280,17 +340,17 @@ class _OffsetScreenState extends State<OffsetScreen> {
     );
   }
 
-  Widget _inputField(String label, TextEditingController ctrl) {
+  Widget _inputField(String label, TextEditingController ctrl, AppColors c) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: 'DM Sans',
             fontSize: 11,
             fontWeight: FontWeight.w500,
-            color: _text3,
+            color: c.text3,
           ),
         ),
         const SizedBox(height: 6),
@@ -298,13 +358,13 @@ class _OffsetScreenState extends State<OffsetScreen> {
           controller: ctrl,
           keyboardType:
               const TextInputType.numberWithOptions(decimal: true),
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: 'DM Mono',
             fontSize: 22,
             fontWeight: FontWeight.w500,
-            color: _text,
+            color: c.text,
           ),
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             border: InputBorder.none,
             isDense: true,
             contentPadding: EdgeInsets.zero,
@@ -312,7 +372,7 @@ class _OffsetScreenState extends State<OffsetScreen> {
             hintStyle: TextStyle(
               fontFamily: 'DM Mono',
               fontSize: 22,
-              color: Color(0xFFCCCCCC),
+              color: c.text3.withValues(alpha: 0.4),
             ),
           ),
           onChanged: (_) => _calculate(),
@@ -323,7 +383,7 @@ class _OffsetScreenState extends State<OffsetScreen> {
 
   // ─── 각도 선택 ─────────────────────────────────────────
 
-  Widget _buildAngleButtons() {
+  Widget _buildAngleButtons(AppColors c) {
     return Row(
       children: _angles.map((a) {
         final selected = a == _selectedAngle;
@@ -339,10 +399,10 @@ class _OffsetScreenState extends State<OffsetScreen> {
                 duration: const Duration(milliseconds: 200),
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
-                  color: selected ? _text : Colors.white,
-                  borderRadius: BorderRadius.circular(_cardRadius),
+                  color: selected ? c.chipSelected : c.chipUnselected,
+                  borderRadius: BorderRadius.circular(cardRadius),
                   border: Border.all(
-                    color: selected ? _text : _border,
+                    color: selected ? c.chipSelected : c.border,
                   ),
                 ),
                 alignment: Alignment.center,
@@ -352,7 +412,7 @@ class _OffsetScreenState extends State<OffsetScreen> {
                     fontFamily: 'DM Mono',
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
-                    color: selected ? Colors.white : _text2,
+                    color: selected ? (Theme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white) : c.text2,
                   ),
                 ),
               ),
@@ -365,64 +425,103 @@ class _OffsetScreenState extends State<OffsetScreen> {
 
   // ─── 결과 카드 ─────────────────────────────────────────
 
-  Widget _buildResultCard(OffsetResult r) {
+  Widget _buildResultCard(OffsetResult r, AppColors c) {
+    final setAngle = (_selectedAngle + _springBack).round();
+
     return Container(
       width: double.infinity,
-      decoration: _cardDeco(),
+      decoration: cardDeco(c),
       padding: const EdgeInsets.all(20),
       child: Column(
         children: [
           Row(
             children: [
               Expanded(
-                child: _bigResult('B1 삽입', '${r.b1Insert.round()} mm'),
+                child: _bigResult('B1 삽입', '${r.b1Insert.round()} mm', c),
               ),
-              Container(
-                  width: 1, height: 56, color: _border),
+              Container(width: 1, height: 56, color: c.border),
               Expanded(
-                child: _bigResult('B2 삽입', '${r.b2Insert.round()} mm'),
+                child: _bigResult('B2 삽입', '${r.b2Insert.round()} mm', c),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          const Divider(height: 1, color: _border),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              color: c.headerBg,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              '세팅각도: $setAngle° (${_selectedAngle.round()}° + ${_springBack.round()}°)',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'DM Mono',
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: c.accent,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Divider(height: 1, color: c.border),
+          const SizedBox(height: 12),
           Row(
             children: [
-              _smallResult('경사 구간', '${r.offsetLength.round()} mm'),
-              Container(
-                  width: 1, height: 36, color: _border),
-              _smallResult('수평 이동', '${r.horizMove.round()} mm'),
-              Container(
-                  width: 1, height: 36, color: _border),
-              _smallResult('총 소요', '${r.totalLength.round()} mm'),
+              _smallResult('경사 구간', '${r.offsetLength.round()} mm', c),
+              Container(width: 1, height: 36, color: c.border),
+              _smallResult('수평 이동', '${r.horizMove.round()} mm', c),
+              Container(width: 1, height: 36, color: c.border),
+              _smallResult('총 소요', '${r.totalLength.round()} mm', c),
             ],
+          ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: _copyResult,
+              icon: Icon(Icons.copy, size: 14, color: c.text3),
+              label: Text(
+                '결과 복사',
+                style: TextStyle(
+                  fontFamily: 'DM Sans',
+                  fontSize: 12,
+                  color: c.text3,
+                ),
+              ),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _bigResult(String label, String value) {
+  Widget _bigResult(String label, String value, AppColors c) {
     return Column(
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: 'DM Sans',
             fontSize: 12,
             fontWeight: FontWeight.w500,
-            color: _text3,
+            color: c.text3,
           ),
         ),
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: 'DM Mono',
             fontSize: 32,
             fontWeight: FontWeight.w700,
-            color: _green,
+            color: c.accent,
             height: 1.1,
           ),
         ),
@@ -430,27 +529,27 @@ class _OffsetScreenState extends State<OffsetScreen> {
     );
   }
 
-  Widget _smallResult(String label, String value) {
+  Widget _smallResult(String label, String value, AppColors c) {
     return Expanded(
       child: Column(
         children: [
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: 'DM Sans',
               fontSize: 11,
               fontWeight: FontWeight.w500,
-              color: _text3,
+              color: c.text3,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: 'DM Mono',
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: _text,
+              color: c.text,
             ),
           ),
         ],
@@ -460,7 +559,7 @@ class _OffsetScreenState extends State<OffsetScreen> {
 
   // ─── 작업 순서 가이드 카드 ─────────────────────────────
 
-  Widget _buildStepGuideCard(OffsetResult r) {
+  Widget _buildStepGuideCard(OffsetResult r, AppColors c) {
     final setAngle = (_selectedAngle + _springBack).round();
 
     final steps = [
@@ -490,25 +589,25 @@ class _OffsetScreenState extends State<OffsetScreen> {
     final allDone = doneCount == steps.length;
 
     return Container(
-      decoration: _cardDeco(),
+      decoration: cardDeco(c),
       clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header
           Container(
-            color: _headerBg,
+            color: c.headerBg,
             padding:
                 const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             child: Row(
               children: [
-                const Text(
+                Text(
                   '작업 순서',
                   style: TextStyle(
                     fontFamily: 'DM Sans',
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: _text,
+                    color: c.text,
                   ),
                 ),
                 if (allDone) ...[
@@ -517,16 +616,16 @@ class _OffsetScreenState extends State<OffsetScreen> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
-                      color: _greenBg,
+                      color: c.accentBg,
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: const Text(
-                      '✓ 완료',
+                    child: Text(
+                      '완료',
                       style: TextStyle(
                         fontFamily: 'DM Sans',
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        color: _green,
+                        color: c.accent,
                       ),
                     ),
                   ),
@@ -534,11 +633,11 @@ class _OffsetScreenState extends State<OffsetScreen> {
                 const Spacer(),
                 Text(
                   '$doneCount/${steps.length}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'DM Mono',
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: _green,
+                    color: c.accent,
                   ),
                 ),
               ],
@@ -552,6 +651,7 @@ class _OffsetScreenState extends State<OffsetScreen> {
               '${i + 1}',
               steps[i].$1,
               steps[i].$2,
+              c,
             ),
         ],
       ),
@@ -563,6 +663,7 @@ class _OffsetScreenState extends State<OffsetScreen> {
     String number,
     String title,
     String subtitle,
+    AppColors c,
   ) {
     final checked = _stepsDone[index];
     return InkWell(
@@ -576,7 +677,7 @@ class _OffsetScreenState extends State<OffsetScreen> {
               width: 26,
               height: 26,
               decoration: BoxDecoration(
-                color: checked ? _green : const Color(0xFFEEEEEE),
+                color: checked ? c.accent : c.stepUnchecked,
                 shape: BoxShape.circle,
               ),
               alignment: Alignment.center,
@@ -586,7 +687,7 @@ class _OffsetScreenState extends State<OffsetScreen> {
                   fontFamily: 'DM Mono',
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: checked ? Colors.white : _text2,
+                  color: checked ? Colors.white : c.text2,
                 ),
               ),
             ),
@@ -601,18 +702,18 @@ class _OffsetScreenState extends State<OffsetScreen> {
                       fontFamily: 'DM Sans',
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: _text,
+                      color: c.text,
                       decoration:
                           checked ? TextDecoration.lineThrough : null,
-                      decorationColor: _text3,
+                      decorationColor: c.text3,
                     ),
                   ),
                   Text(
                     subtitle,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'DM Sans',
                       fontSize: 11,
-                      color: _text3,
+                      color: c.text3,
                     ),
                   ),
                 ],
@@ -620,7 +721,7 @@ class _OffsetScreenState extends State<OffsetScreen> {
             ),
             Icon(
               checked ? Icons.check_circle : Icons.circle_outlined,
-              color: checked ? _green : _text3,
+              color: checked ? c.accent : c.text3,
               size: 22,
             ),
           ],
@@ -632,12 +733,12 @@ class _OffsetScreenState extends State<OffsetScreen> {
   // ─── 측면 다이어그램 ───────────────────────────────────
 
   Widget _buildOffsetDiagram(
-      OffsetResult r, double obsHeight, double obsWidth) {
+      OffsetResult r, double obsHeight, double obsWidth, AppColors c) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: c.card,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _border),
+        border: Border.all(color: c.border),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -647,23 +748,23 @@ class _OffsetScreenState extends State<OffsetScreen> {
             width: double.infinity,
             padding:
                 const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: const BoxDecoration(
-              color: _headerBg,
-              border: Border(bottom: BorderSide(color: _border)),
+            decoration: BoxDecoration(
+              color: c.headerBg,
+              border: Border(bottom: BorderSide(color: c.border)),
             ),
-            child: const Text(
+            child: Text(
               '측면 다이어그램',
               style: TextStyle(
                 fontFamily: 'DM Sans',
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color: _text2,
+                color: c.text2,
                 letterSpacing: 1.0,
               ),
             ),
           ),
           Container(
-            color: const Color(0xFF1C1C1E),
+            color: c.diagramBg,
             height: 200,
             width: double.infinity,
             child: CustomPaint(
@@ -683,15 +784,15 @@ class _OffsetScreenState extends State<OffsetScreen> {
 
   // ─── 섹션 라벨 ─────────────────────────────────────────
 
-  Widget _buildSectionLabel(String text) {
+  Widget _buildSectionLabel(String text, AppColors c) {
     return Text(
       text,
-      style: const TextStyle(
+      style: TextStyle(
         fontFamily: 'DM Sans',
         fontSize: 11,
         fontWeight: FontWeight.w700,
         letterSpacing: 1.0,
-        color: _text2,
+        color: c.text2,
       ),
     );
   }
@@ -699,6 +800,7 @@ class _OffsetScreenState extends State<OffsetScreen> {
   // ─── AR 측정 → 필드 선택 바텀시트 ─────────────────────
 
   Future<void> _measureThenPickField() async {
+    setState(() => _measuring = true);
     try {
       final distance = await ArMeasureService.getDistance();
       if (distance != null && mounted) {
@@ -719,9 +821,11 @@ class _OffsetScreenState extends State<OffsetScreen> {
         );
       }
     }
+    if (mounted) setState(() => _measuring = false);
   }
 
   void _showFieldPickerForDistance(double distance) {
+    final c = context.appColors;
     final distStr = '${distance.round()} mm';
     final fields = [
       ('장애물 높이', _heightCtrl),
@@ -732,7 +836,7 @@ class _OffsetScreenState extends State<OffsetScreen> {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: c.card,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -747,43 +851,43 @@ class _OffsetScreenState extends State<OffsetScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
                   child: Text(
                     distStr,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'DM Mono',
                       fontSize: 32,
                       fontWeight: FontWeight.w700,
-                      color: _green,
+                      color: c.accent,
                     ),
                   ),
                 ),
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 12),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
                   child: Text(
                     '입력할 항목을 선택하세요',
                     style: TextStyle(
                       fontFamily: 'DM Sans',
                       fontSize: 13,
-                      color: _text3,
+                      color: c.text3,
                     ),
                   ),
                 ),
-                const Divider(height: 1, color: _border),
+                Divider(height: 1, color: c.border),
                 ...fields.map((f) => ListTile(
-                      leading: const Icon(Icons.straighten,
-                          size: 20, color: _red),
+                      leading: Icon(Icons.straighten,
+                          size: 20, color: c.primary),
                       title: Text(
                         f.$1,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontFamily: 'DM Sans',
                           fontSize: 15,
-                          color: _text,
+                          color: c.text,
                         ),
                       ),
                       trailing: Text(
                         f.$2.text.isEmpty ? '-' : '${f.$2.text} mm',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontFamily: 'DM Mono',
                           fontSize: 13,
-                          color: _text3,
+                          color: c.text3,
                         ),
                       ),
                       onTap: () {
@@ -834,30 +938,39 @@ class _OffsetScreenState extends State<OffsetScreen> {
 
   // ─── 하단 AR 버튼 ─────────────────────────────────────
 
-  Widget _buildArButton() {
+  Widget _buildArButton(AppColors c) {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-      color: _bgColor,
+      color: c.background,
       child: SizedBox(
         width: double.infinity,
         height: 52,
         child: ElevatedButton.icon(
-          onPressed: () => _measureThenPickField(),
-          icon: const Icon(Icons.camera_alt_outlined, size: 20),
-          label: const Text(
-            'AR 측정으로 입력',
-            style: TextStyle(
+          onPressed: _measuring ? null : () => _measureThenPickField(),
+          icon: _measuring
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Icon(Icons.camera_alt_outlined, size: 20),
+          label: Text(
+            _measuring ? '측정 중...' : 'AR 측정으로 입력',
+            style: const TextStyle(
               fontFamily: 'DM Sans',
               fontSize: 15,
               fontWeight: FontWeight.w600,
             ),
           ),
           style: ElevatedButton.styleFrom(
-            backgroundColor: _red,
+            backgroundColor: c.primary,
             foregroundColor: Colors.white,
             elevation: 0,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(_cardRadius),
+              borderRadius: BorderRadius.circular(cardRadius),
             ),
           ),
         ),

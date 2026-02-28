@@ -1,41 +1,23 @@
+import 'dart:convert';
 import 'dart:math' show sin, cos;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/constants/pipe_specs.dart';
 import '../../core/models/bend_result.dart';
+import '../../core/theme/app_theme.dart';
+import '../../main.dart';
 import '../../services/ar_measure_service.dart';
 import 'bending_calculator.dart';
 
-// ─── Design Tokens ──────────────────────────────────────
-const _bgColor = Color(0xFFF5F3F0);
-const _red = Color(0xFFC8102E);
-const _green = Color(0xFF1A7A4A);
-const _greenBg = Color(0xFFEBF7F1);
-const _text = Color(0xFF18181B);
-const _text2 = Color(0xFF71717A);
-const _text3 = Color(0xFFA1A1AA);
-const _border = Color(0xFFE4E2DE);
-const _headerBg = Color(0xFFF8F6F3);
-const _cardRadius = 12.0;
-
 const _angles = [30.0, 45.0, 60.0, 90.0];
 final _pipeOds = pipeSpecs.keys.toList();
-
-BoxDecoration _cardDeco() => BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(_cardRadius),
-      border: Border.all(color: _border, width: 1),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.05),
-          blurRadius: 8,
-          offset: const Offset(0, 2),
-        ),
-      ],
-    );
+const _prefsKeyBends = 'bending_data';
+const _prefsKeyMachine = 'bending_machine';
+const _prefsKeyOd = 'bending_od';
 
 // ─────────────────────────────────────────────────────────
 
@@ -54,6 +36,13 @@ class _BendingScreenState extends State<BendingScreen> {
   BendDirection? _selectedDirection;
   final List<_BendEntry> _bends = [];
   final _scrollController = ScrollController();
+  bool _measuring = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
 
   @override
   void dispose() {
@@ -62,19 +51,59 @@ class _BendingScreenState extends State<BendingScreen> {
     super.dispose();
   }
 
+  // ─── Persistence ──────────────────────────────────────
+
+  Future<void> _loadData() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final machineIndex = prefs.getInt(_prefsKeyMachine);
+    if (machineIndex != null && machineIndex < Machine.values.length) {
+      _machine = Machine.values[machineIndex];
+    }
+    final od = prefs.getInt(_prefsKeyOd);
+    if (od != null && pipeSpecs.containsKey(od)) {
+      _selectedOd = od;
+    }
+
+    final json = prefs.getString(_prefsKeyBends);
+    if (json != null) {
+      try {
+        final list = jsonDecode(json) as List;
+        final entries = list
+            .map((e) => _BendEntry.fromJson(e as Map<String, dynamic>))
+            .toList();
+        if (mounted) setState(() => _bends.addAll(entries));
+      } catch (_) {
+        // corrupted data — ignore
+      }
+    }
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _saveData() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_prefsKeyMachine, _machine.index);
+    await prefs.setInt(_prefsKeyOd, _selectedOd);
+    await prefs.setString(
+      _prefsKeyBends,
+      jsonEncode(_bends.map((b) => b.toJson()).toList()),
+    );
+  }
+
   // ─── Actions ────────────────────────────────────────────
 
   void _addBend() {
     final insert = double.tryParse(_insertController.text);
     if (insert == null || insert <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('삽입길이를 입력하세요')),
+        const SnackBar(content: Text('삽입길이를 입력하세요 (1mm 이상)')),
       );
       return;
     }
     if (_selectedDirection == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('꺾는 방향을 선택하세요')),
+        const SnackBar(
+            content: Text('꺾는 방향을 선택하세요 (위/아래/좌/우)')),
       );
       return;
     }
@@ -96,6 +125,7 @@ class _BendingScreenState extends State<BendingScreen> {
       _selectedDirection = null;
       _insertController.clear();
     });
+    _saveData();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollController.animateTo(
         _scrollController.position.maxScrollExtent,
@@ -107,6 +137,7 @@ class _BendingScreenState extends State<BendingScreen> {
 
   void _deleteBend(int i) {
     setState(() => _bends.removeAt(i));
+    _saveData();
   }
 
   void _prepareNextBend() {
@@ -121,22 +152,82 @@ class _BendingScreenState extends State<BendingScreen> {
     );
   }
 
-  void _resetAll() {
-    setState(() {
-      _bends.clear();
-      _selectedDirection = null;
-      _insertController.clear();
-    });
+  void _confirmResetAll() {
+    if (_bends.isEmpty) return;
+    final c = context.appColors;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('초기화'),
+        content: Text('${_bends.length}개의 꺾기 데이터가 삭제됩니다. 초기화할까요?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              setState(() {
+                _bends.clear();
+                _selectedDirection = null;
+                _insertController.clear();
+              });
+              _saveData();
+            },
+            child: Text('초기화', style: TextStyle(color: c.primary)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _copyBendInfo(int i, _BendEntry entry) {
+    final text =
+        '${i + 1}번 꺾기: ${entry.pipeOd}mm ${entry.angle.round()}° ${entry.direction.label}'
+        ' | 세팅 ${entry.result.setAngle.round()}° | 호 ${entry.result.arcLength.round()}mm'
+        ' | 삽입 ${entry.insertLen.round()}mm';
+    Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('클립보드에 복사되었습니다'),
+        duration: Duration(seconds: 1),
+      ),
+    );
+  }
+
+  void _copyAllSummary() {
+    final lines = <String>[];
+    for (var i = 0; i < _bends.length; i++) {
+      final b = _bends[i];
+      lines.add(
+        '${i + 1}번: ${b.pipeOd}mm ${b.angle.round()}° ${b.direction.label}'
+        ' | 세팅 ${b.result.setAngle.round()}° | 삽입 ${b.insertLen.round()}mm',
+      );
+    }
+    final totalConsumed =
+        _bends.fold<double>(0, (sum, b) => sum + b.result.consumedLength);
+    lines.add('총 소비: ${totalConsumed.round()}mm');
+    Clipboard.setData(ClipboardData(text: lines.join('\n')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('전체 현황이 복사되었습니다'),
+        duration: Duration(seconds: 1),
+      ),
+    );
   }
 
   // ─── Build ──────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
+    final c = context.appColors;
+    final themeCtrl = ThemeController.of(context);
+
     return Scaffold(
-      backgroundColor: _bgColor,
+      backgroundColor: c.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: c.card,
         elevation: 0,
         centerTitle: false,
         title: Row(
@@ -144,24 +235,41 @@ class _BendingScreenState extends State<BendingScreen> {
             Container(
               width: 8,
               height: 8,
-              decoration: const BoxDecoration(
-                color: _red,
-                shape: BoxShape.circle,
-              ),
+              decoration: BoxDecoration(color: c.primary, shape: BoxShape.circle),
             ),
             const SizedBox(width: 8),
-            const Text(
+            Text(
               'PIPECRAFT AR',
               style: TextStyle(
                 fontFamily: 'DM Sans',
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF1A1A1A),
+                color: c.text,
                 letterSpacing: 1.2,
               ),
             ),
           ],
         ),
+        actions: [
+          if (themeCtrl != null)
+            IconButton(
+              icon: Icon(
+                switch (themeCtrl.themeMode) {
+                  ThemeMode.light => Icons.light_mode,
+                  ThemeMode.dark => Icons.dark_mode,
+                  _ => Icons.brightness_auto,
+                },
+                color: c.text2,
+                size: 20,
+              ),
+              tooltip: switch (themeCtrl.themeMode) {
+                ThemeMode.light => '라이트 모드',
+                ThemeMode.dark => '다크 모드',
+                _ => '시스템 설정',
+              },
+              onPressed: themeCtrl.onCycleTheme,
+            ),
+        ],
       ),
       body: Column(
         children: [
@@ -172,38 +280,92 @@ class _BendingScreenState extends State<BendingScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildMachineToggle(),
+                  _buildMachineToggle(c),
+                  const SizedBox(height: 6),
+                  _buildSpringBackInfo(c),
                   const SizedBox(height: 16),
-                  _buildSectionLabel('관경 (MM)'),
+                  _buildSectionLabel('관경 (MM)', c),
                   const SizedBox(height: 8),
-                  _buildPipeChips(),
+                  _buildPipeChips(c),
                   const SizedBox(height: 16),
-                  _buildInsertCard(),
+                  _buildInsertCard(c),
                   const SizedBox(height: 16),
-                  _buildSectionLabel('목표 각도'),
+                  _buildSectionLabel('목표 각도', c),
                   const SizedBox(height: 8),
-                  _buildAngleButtons(),
+                  _buildAngleButtons(c),
                   const SizedBox(height: 16),
-                  _buildSectionLabel('꺾는 방향'),
+                  _buildSectionLabel('꺾는 방향', c),
                   const SizedBox(height: 8),
-                  _buildDirectionPad(),
+                  _buildDirectionPad(c),
                   const SizedBox(height: 20),
-                  _buildAddBendButton(),
+                  _buildAddBendButton(c),
                   if (_bends.isNotEmpty) ...[
                     const SizedBox(height: 24),
-                    _buildSummaryCard(),
+                    _buildSummaryCard(c),
                     const SizedBox(height: 12),
-                    _buildRoutePreview(),
+                    _buildRoutePreview(c),
                     const SizedBox(height: 12),
                     for (var i = 0; i < _bends.length; i++)
-                      _buildBendCard(i, _bends[i]),
+                      _buildBendCard(i, _bends[i], c),
+                  ] else ...[
+                    const SizedBox(height: 40),
+                    _buildEmptyState(c),
                   ],
                   const SizedBox(height: 16),
                 ],
               ),
             ),
           ),
-          _buildBottomBar(),
+          _buildBottomBar(c),
+        ],
+      ),
+    );
+  }
+
+  // ─── 스프링백 정보 ─────────────────────────────────────
+
+  Widget _buildSpringBackInfo(AppColors c) {
+    final sb = springBack[_machine]?[_selectedOd]?.toInt() ?? 0;
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: Text(
+        '현재 보정: ${_machine.label} · ${_selectedOd}mm → +$sb°',
+        style: TextStyle(
+          fontFamily: 'DM Sans',
+          fontSize: 12,
+          color: c.text3,
+        ),
+      ),
+    );
+  }
+
+  // ─── 빈 상태 ───────────────────────────────────────────
+
+  Widget _buildEmptyState(AppColors c) {
+    return Center(
+      child: Column(
+        children: [
+          Icon(Icons.straighten, size: 64, color: c.text3.withValues(alpha: 0.4)),
+          const SizedBox(height: 16),
+          Text(
+            '꺾기를 추가하세요',
+            style: TextStyle(
+              fontFamily: 'DM Sans',
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: c.text3,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '위에서 삽입길이와 방향을 선택한 후\n꺾기 추가 버튼을 눌러주세요',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: 'DM Sans',
+              fontSize: 13,
+              color: c.text3.withValues(alpha: 0.7),
+            ),
+          ),
         ],
       ),
     );
@@ -211,22 +373,25 @@ class _BendingScreenState extends State<BendingScreen> {
 
   // ─── 기기 선택 토글 ────────────────────────────────────
 
-  Widget _buildMachineToggle() {
+  Widget _buildMachineToggle(AppColors c) {
     return Container(
-      decoration: _cardDeco(),
+      decoration: cardDeco(c),
       padding: const EdgeInsets.all(4),
       child: Row(
         children: Machine.values.map((m) {
           final selected = m == _machine;
           return Expanded(
             child: GestureDetector(
-              onTap: () => setState(() => _machine = m),
+              onTap: () {
+                setState(() => _machine = m);
+                _saveData();
+              },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
-                  color: selected ? _red : Colors.transparent,
-                  borderRadius: BorderRadius.circular(_cardRadius - 2),
+                  color: selected ? c.primary : Colors.transparent,
+                  borderRadius: BorderRadius.circular(cardRadius - 2),
                 ),
                 alignment: Alignment.center,
                 child: Text(
@@ -235,7 +400,7 @@ class _BendingScreenState extends State<BendingScreen> {
                     fontFamily: 'DM Sans',
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: selected ? Colors.white : _text3,
+                    color: selected ? Colors.white : c.text3,
                   ),
                 ),
               ),
@@ -248,27 +413,30 @@ class _BendingScreenState extends State<BendingScreen> {
 
   // ─── 관경 칩 ───────────────────────────────────────────
 
-  Widget _buildPipeChips() {
+  Widget _buildPipeChips(AppColors c) {
     return SizedBox(
       height: 40,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: _pipeOds.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (context, i) {
           final od = _pipeOds[i];
           final selected = od == _selectedOd;
           return GestureDetector(
-            onTap: () => setState(() => _selectedOd = od),
+            onTap: () {
+              setState(() => _selectedOd = od);
+              _saveData();
+            },
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               padding: const EdgeInsets.symmetric(horizontal: 18),
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: selected ? _text : Colors.white,
+                color: selected ? c.chipSelected : c.chipUnselected,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: selected ? _text : _border,
+                  color: selected ? c.chipSelected : c.border,
                 ),
               ),
               child: Text(
@@ -277,7 +445,7 @@ class _BendingScreenState extends State<BendingScreen> {
                   fontFamily: 'DM Mono',
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: selected ? Colors.white : _text2,
+                  color: selected ? (Theme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white) : c.text2,
                 ),
               ),
             ),
@@ -289,20 +457,20 @@ class _BendingScreenState extends State<BendingScreen> {
 
   // ─── 삽입 길이 입력 ────────────────────────────────────
 
-  Widget _buildInsertCard() {
+  Widget _buildInsertCard(AppColors c) {
     return Container(
-      decoration: _cardDeco(),
+      decoration: cardDeco(c),
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             '삽입 길이 (mm)',
             style: TextStyle(
               fontFamily: 'DM Sans',
               fontSize: 13,
               fontWeight: FontWeight.w500,
-              color: _text3,
+              color: c.text3,
             ),
           ),
           const SizedBox(height: 8),
@@ -310,13 +478,13 @@ class _BendingScreenState extends State<BendingScreen> {
             controller: _insertController,
             keyboardType:
                 const TextInputType.numberWithOptions(decimal: true),
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: 'DM Mono',
               fontSize: 28,
               fontWeight: FontWeight.w500,
-              color: _text,
+              color: c.text,
             ),
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               border: InputBorder.none,
               isDense: true,
               contentPadding: EdgeInsets.zero,
@@ -324,7 +492,7 @@ class _BendingScreenState extends State<BendingScreen> {
               hintStyle: TextStyle(
                 fontFamily: 'DM Mono',
                 fontSize: 28,
-                color: Color(0xFFCCCCCC),
+                color: c.text3.withValues(alpha: 0.4),
               ),
             ),
           ),
@@ -335,7 +503,7 @@ class _BendingScreenState extends State<BendingScreen> {
 
   // ─── 각도 선택 ─────────────────────────────────────────
 
-  Widget _buildAngleButtons() {
+  Widget _buildAngleButtons(AppColors c) {
     return Row(
       children: _angles.map((a) {
         final selected = a == _selectedAngle;
@@ -348,10 +516,10 @@ class _BendingScreenState extends State<BendingScreen> {
                 duration: const Duration(milliseconds: 200),
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
-                  color: selected ? _text : Colors.white,
-                  borderRadius: BorderRadius.circular(_cardRadius),
+                  color: selected ? c.chipSelected : c.chipUnselected,
+                  borderRadius: BorderRadius.circular(cardRadius),
                   border: Border.all(
-                    color: selected ? _text : _border,
+                    color: selected ? c.chipSelected : c.border,
                   ),
                 ),
                 alignment: Alignment.center,
@@ -361,7 +529,7 @@ class _BendingScreenState extends State<BendingScreen> {
                     fontFamily: 'DM Mono',
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
-                    color: selected ? Colors.white : _text2,
+                    color: selected ? (Theme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white) : c.text2,
                   ),
                 ),
               ),
@@ -374,7 +542,7 @@ class _BendingScreenState extends State<BendingScreen> {
 
   // ─── 방향 선택 D패드 ──────────────────────────────────
 
-  Widget _buildDirectionPad() {
+  Widget _buildDirectionPad(AppColors c) {
     return Column(
       children: [
         Center(
@@ -387,7 +555,7 @@ class _BendingScreenState extends State<BendingScreen> {
                   children: [
                     const SizedBox(width: 52),
                     const SizedBox(width: 8),
-                    _dirButton(BendDirection.up),
+                    _dirButton(BendDirection.up, c),
                     const SizedBox(width: 8),
                     const SizedBox(width: 52),
                   ],
@@ -396,11 +564,11 @@ class _BendingScreenState extends State<BendingScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _dirButton(BendDirection.left),
+                    _dirButton(BendDirection.left, c),
                     const SizedBox(width: 8),
-                    _centerCell(),
+                    _centerCell(c),
                     const SizedBox(width: 8),
-                    _dirButton(BendDirection.right),
+                    _dirButton(BendDirection.right, c),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -409,7 +577,7 @@ class _BendingScreenState extends State<BendingScreen> {
                   children: [
                     const SizedBox(width: 52),
                     const SizedBox(width: 8),
-                    _dirButton(BendDirection.down),
+                    _dirButton(BendDirection.down, c),
                     const SizedBox(width: 8),
                     const SizedBox(width: 52),
                   ],
@@ -423,11 +591,11 @@ class _BendingScreenState extends State<BendingScreen> {
             padding: const EdgeInsets.only(top: 10),
             child: Text(
               '${_selectedDirection!.emoji} ${_selectedDirection!.label}',
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'DM Sans',
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: _text,
+                color: c.text,
               ),
             ),
           ),
@@ -435,7 +603,7 @@ class _BendingScreenState extends State<BendingScreen> {
     );
   }
 
-  Widget _dirButton(BendDirection dir) {
+  Widget _dirButton(BendDirection dir, AppColors c) {
     final selected = _selectedDirection == dir;
     final icon = switch (dir) {
       BendDirection.up => Icons.arrow_upward,
@@ -454,32 +622,32 @@ class _BendingScreenState extends State<BendingScreen> {
           width: 52,
           height: 52,
           decoration: BoxDecoration(
-            color: selected ? _red : Colors.white,
+            color: selected ? c.primary : c.card,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: selected ? _red : _border,
+              color: selected ? c.primary : c.border,
               width: 2,
             ),
           ),
           alignment: Alignment.center,
-          child: Icon(icon, size: 24, color: selected ? Colors.white : _text),
+          child: Icon(icon, size: 24, color: selected ? Colors.white : c.text),
         ),
       ),
     );
   }
 
-  Widget _centerCell() {
+  Widget _centerCell(AppColors c) {
     return Container(
       width: 52,
       height: 52,
       alignment: Alignment.center,
-      child: const Text(
+      child: Text(
         '방향',
         style: TextStyle(
           fontFamily: 'DM Sans',
           fontSize: 11,
           fontWeight: FontWeight.w600,
-          color: _text3,
+          color: c.text3,
         ),
       ),
     );
@@ -487,7 +655,7 @@ class _BendingScreenState extends State<BendingScreen> {
 
   // ─── 꺾기 추가 버튼 ───────────────────────────────────
 
-  Widget _buildAddBendButton() {
+  Widget _buildAddBendButton(AppColors c) {
     return SizedBox(
       width: double.infinity,
       height: 52,
@@ -503,11 +671,11 @@ class _BendingScreenState extends State<BendingScreen> {
           ),
         ),
         style: ElevatedButton.styleFrom(
-          backgroundColor: _red,
+          backgroundColor: c.primary,
           foregroundColor: Colors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(_cardRadius),
+            borderRadius: BorderRadius.circular(cardRadius),
           ),
         ),
       ),
@@ -516,14 +684,14 @@ class _BendingScreenState extends State<BendingScreen> {
 
   // ─── 경로 미리보기 ─────────────────────────────────────
 
-  Widget _buildRoutePreview() {
+  Widget _buildRoutePreview(AppColors c) {
     return Column(
       children: [
         Container(
           decoration: BoxDecoration(
-            color: const Color(0xFF1C1C1E),
+            color: c.diagramBg,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFF2A2A2E)),
+            border: Border.all(color: c.diagramBorder),
           ),
           height: 200,
           child: ClipRRect(
@@ -538,22 +706,22 @@ class _BendingScreenState extends State<BendingScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _legendItem(const Color(0xFFB87333), '배관'),
+            _legendItem(const Color(0xFFB87333), '배관', c),
             const SizedBox(width: 12),
-            _legendItem(const Color(0xFFFF6B6B), '꺾임'),
+            _legendItem(const Color(0xFFFF6B6B), '꺾임', c),
             const SizedBox(width: 12),
-            _legendItem(const Color(0xFF2ECC71), '완료'),
+            _legendItem(const Color(0xFF2ECC71), '완료', c),
             const SizedBox(width: 12),
-            _legendItem(const Color(0xFF4A9EFF), '포인트'),
+            _legendItem(const Color(0xFF4A9EFF), '포인트', c),
             const SizedBox(width: 12),
-            _legendItem(const Color(0xFFFFD60A), '마킹위치'),
+            _legendItem(const Color(0xFFFFD60A), '마킹위치', c),
           ],
         ),
       ],
     );
   }
 
-  Widget _legendItem(Color color, String label) {
+  Widget _legendItem(Color color, String label, AppColors c) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -565,10 +733,10 @@ class _BendingScreenState extends State<BendingScreen> {
         const SizedBox(width: 4),
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: 'DM Sans',
             fontSize: 10,
-            color: _text2,
+            color: c.text2,
           ),
         ),
       ],
@@ -577,37 +745,46 @@ class _BendingScreenState extends State<BendingScreen> {
 
   // ─── 전체 현황 카드 ───────────────────────────────────
 
-  Widget _buildSummaryCard() {
+  Widget _buildSummaryCard(AppColors c) {
     final total = _bends.length;
     final doneCount = _bends.where((b) => b.done).length;
     final totalConsumed =
         _bends.fold<double>(0, (sum, b) => sum + b.result.consumedLength);
 
     return Container(
-      decoration: _cardDeco(),
+      decoration: cardDeco(c),
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Text(
+              Text(
                 '전체 현황',
                 style: TextStyle(
                   fontFamily: 'DM Sans',
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
-                  color: _text,
+                  color: c.text,
                 ),
               ),
               const Spacer(),
+              IconButton(
+                icon: Icon(Icons.copy, size: 16, color: c.text3),
+                tooltip: '전체 복사',
+                onPressed: _copyAllSummary,
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              ),
+              const SizedBox(width: 4),
               Text(
                 '$doneCount/$total 완료',
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: 'DM Mono',
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: _green,
+                  color: c.accent,
                 ),
               ),
             ],
@@ -615,10 +792,10 @@ class _BendingScreenState extends State<BendingScreen> {
           const SizedBox(height: 8),
           Text(
             '총 소비 배관 길이: ${totalConsumed.round()} mm',
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: 'DM Mono',
               fontSize: 13,
-              color: _text2,
+              color: c.text2,
             ),
           ),
           const SizedBox(height: 10),
@@ -627,8 +804,8 @@ class _BendingScreenState extends State<BendingScreen> {
             child: LinearProgressIndicator(
               value: total > 0 ? doneCount / total : 0,
               minHeight: 6,
-              backgroundColor: const Color(0xFFEEEEEE),
-              valueColor: const AlwaysStoppedAnimation(_green),
+              backgroundColor: c.stepUnchecked,
+              valueColor: AlwaysStoppedAnimation(c.accent),
             ),
           ),
         ],
@@ -638,30 +815,30 @@ class _BendingScreenState extends State<BendingScreen> {
 
   // ─── 꺾기 카드 ────────────────────────────────────────
 
-  Widget _buildBendCard(int i, _BendEntry entry) {
+  Widget _buildBendCard(int i, _BendEntry entry, AppColors c) {
     final sb = (entry.result.setAngle - entry.angle).round();
     final bendCenter = entry.insertLen + entry.result.arcLength / 2;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      decoration: _cardDeco(),
+      decoration: cardDeco(c),
       clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── Header ──
           Container(
-            color: _headerBg,
+            color: c.headerBg,
             padding: const EdgeInsets.fromLTRB(14, 10, 6, 0),
             child: Row(
               children: [
                 Text(
                   '${i + 1}번째 꺾기',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'DM Sans',
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: _text,
+                    color: c.text,
                   ),
                 ),
                 if (entry.done) ...[
@@ -670,23 +847,29 @@ class _BendingScreenState extends State<BendingScreen> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
-                      color: _greenBg,
+                      color: c.accentBg,
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: const Text(
-                      '✓ 완료',
+                    child: Text(
+                      '완료',
                       style: TextStyle(
                         fontFamily: 'DM Sans',
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        color: _green,
+                        color: c.accent,
                       ),
                     ),
                   ),
                 ],
                 const Spacer(),
                 IconButton(
-                  icon: const Icon(Icons.close, size: 18, color: _text3),
+                  icon: Icon(Icons.copy, size: 16, color: c.text3),
+                  tooltip: '복사',
+                  onPressed: () => _copyBendInfo(i, entry),
+                  visualDensity: VisualDensity.compact,
+                ),
+                IconButton(
+                  icon: Icon(Icons.close, size: 18, color: c.text3),
                   onPressed: () => _deleteBend(i),
                   visualDensity: VisualDensity.compact,
                 ),
@@ -695,14 +878,14 @@ class _BendingScreenState extends State<BendingScreen> {
           ),
           Container(
             width: double.infinity,
-            color: _headerBg,
+            color: c.headerBg,
             padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
             child: Text(
               '${entry.pipeOd}mm · ${entry.angle.round()}° · ${entry.direction.label} · ${entry.insertLen.round()}mm',
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'DM Sans',
                 fontSize: 12,
-                color: _text2,
+                color: c.text2,
               ),
             ),
           ),
@@ -717,63 +900,63 @@ class _BendingScreenState extends State<BendingScreen> {
                     Expanded(
                       child: Column(
                         children: [
-                          const Text('세팅각도',
+                          Text('세팅각도',
                               style: TextStyle(
                                   fontFamily: 'DM Sans',
                                   fontSize: 11,
-                                  color: _text3)),
+                                  color: c.text3)),
                           const SizedBox(height: 2),
                           Text(
                             '${entry.result.setAngle.round()}°',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontFamily: 'DM Mono',
                               fontSize: 28,
                               fontWeight: FontWeight.w700,
-                              color: _green,
+                              color: c.accent,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    Container(width: 1, height: 36, color: _border),
+                    Container(width: 1, height: 36, color: c.border),
                     Expanded(
                       child: Column(
                         children: [
-                          const Text('호길이',
+                          Text('호길이',
                               style: TextStyle(
                                   fontFamily: 'DM Sans',
                                   fontSize: 11,
-                                  color: _text3)),
+                                  color: c.text3)),
                           const SizedBox(height: 2),
                           Text(
                             '${entry.result.arcLength.round()} mm',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontFamily: 'DM Mono',
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
-                              color: _text,
+                              color: c.text,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    Container(width: 1, height: 36, color: _border),
+                    Container(width: 1, height: 36, color: c.border),
                     Expanded(
                       child: Column(
                         children: [
-                          const Text('단축량',
+                          Text('단축량',
                               style: TextStyle(
                                   fontFamily: 'DM Sans',
                                   fontSize: 11,
-                                  color: _text3)),
+                                  color: c.text3)),
                           const SizedBox(height: 2),
                           Text(
                             '${entry.result.shortenLength.round()} mm',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontFamily: 'DM Mono',
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
-                              color: _text,
+                              color: c.text,
                             ),
                           ),
                         ],
@@ -787,22 +970,22 @@ class _BendingScreenState extends State<BendingScreen> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: _headerBg,
+                    color: c.headerBg,
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
                     '소비길이: 삽입 ${entry.insertLen.round()} + 호 ${entry.result.arcLength.round()} = ${entry.result.consumedLength.round()}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'DM Mono',
                       fontSize: 12,
-                      color: _text2,
+                      color: c.text2,
                     ),
                   ),
                 ),
               ],
             ),
           ),
-          const Divider(height: 1, color: _border),
+          Divider(height: 1, color: c.border),
 
           // ── Marking ──
           Padding(
@@ -811,45 +994,45 @@ class _BendingScreenState extends State<BendingScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '✏️ 마킹 위치: 끝에서 ${entry.insertLen.round()}mm',
-                  style: const TextStyle(
+                  '마킹 위치: 끝에서 ${entry.insertLen.round()}mm',
+                  style: TextStyle(
                     fontFamily: 'DM Sans',
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: _text,
+                    color: c.text,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   '    꺾임 중심: ${bendCenter.round()}mm',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'DM Sans',
                     fontSize: 13,
-                    color: _text2,
+                    color: c.text2,
                   ),
                 ),
               ],
             ),
           ),
-          const Divider(height: 1, color: _border),
+          Divider(height: 1, color: c.border),
 
           // ── Steps ──
           _buildStepRow(entry, 0, 'A',
-              '배관에 ${entry.insertLen.round()}mm 마킹', '끝에서 정확히 재서 마킹펜으로 표시'),
+              '배관에 ${entry.insertLen.round()}mm 마킹', '끝에서 정확히 재서 마킹펜으로 표시', c),
           _buildStepRow(
               entry,
               1,
               'B',
               '${entry.direction.emoji} ${entry.direction.label} 방향 확인',
-              '방향이 틀리면 수정 불가!'),
+              '방향이 틀리면 수정 불가!', c),
           _buildStepRow(
               entry,
               2,
               'C',
               '눈금 ${entry.result.setAngle.round()}°에서 멈추기',
-              '목표 ${entry.angle.round()}° + 스프링백 $sb°'),
+              '목표 ${entry.angle.round()}° + 스프링백 $sb°', c),
           _buildStepRow(entry, 3, 'D', '각도계로 실제 꺾임 확인',
-              '${entry.angle.round()}° ± 2° 이내면 OK'),
+              '${entry.angle.round()}° ± 2° 이내면 OK', c),
         ],
       ),
     );
@@ -861,11 +1044,14 @@ class _BendingScreenState extends State<BendingScreen> {
     String letter,
     String title,
     String subtitle,
+    AppColors c,
   ) {
     final checked = entry.stepsDone[stepIndex];
     return InkWell(
-      onTap: () =>
-          setState(() => entry.stepsDone[stepIndex] = !checked),
+      onTap: () {
+        setState(() => entry.stepsDone[stepIndex] = !checked);
+        _saveData();
+      },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         child: Row(
@@ -874,7 +1060,7 @@ class _BendingScreenState extends State<BendingScreen> {
               width: 26,
               height: 26,
               decoration: BoxDecoration(
-                color: checked ? _green : const Color(0xFFEEEEEE),
+                color: checked ? c.accent : c.stepUnchecked,
                 shape: BoxShape.circle,
               ),
               alignment: Alignment.center,
@@ -884,7 +1070,7 @@ class _BendingScreenState extends State<BendingScreen> {
                   fontFamily: 'DM Mono',
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: checked ? Colors.white : _text2,
+                  color: checked ? Colors.white : c.text2,
                 ),
               ),
             ),
@@ -899,18 +1085,18 @@ class _BendingScreenState extends State<BendingScreen> {
                       fontFamily: 'DM Sans',
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: _text,
+                      color: c.text,
                       decoration:
                           checked ? TextDecoration.lineThrough : null,
-                      decorationColor: _text3,
+                      decorationColor: c.text3,
                     ),
                   ),
                   Text(
                     subtitle,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'DM Sans',
                       fontSize: 11,
-                      color: _text3,
+                      color: c.text3,
                     ),
                   ),
                 ],
@@ -918,7 +1104,7 @@ class _BendingScreenState extends State<BendingScreen> {
             ),
             Icon(
               checked ? Icons.check_circle : Icons.circle_outlined,
-              color: checked ? _green : _text3,
+              color: checked ? c.accent : c.text3,
               size: 22,
             ),
           ],
@@ -929,15 +1115,15 @@ class _BendingScreenState extends State<BendingScreen> {
 
   // ─── 섹션 라벨 ─────────────────────────────────────────
 
-  Widget _buildSectionLabel(String text) {
+  Widget _buildSectionLabel(String text, AppColors c) {
     return Text(
       text,
-      style: const TextStyle(
+      style: TextStyle(
         fontFamily: 'DM Sans',
         fontSize: 11,
         fontWeight: FontWeight.w700,
         letterSpacing: 1.0,
-        color: _text2,
+        color: c.text2,
       ),
     );
   }
@@ -976,9 +1162,9 @@ class _BendingScreenState extends State<BendingScreen> {
 
   // ─── 하단 바 ───────────────────────────────────────────
 
-  Widget _buildBottomBar() {
+  Widget _buildBottomBar(AppColors c) {
     return Container(
-      color: _bgColor,
+      color: c.background,
       child: SafeArea(
         top: false,
         child: Column(
@@ -991,13 +1177,13 @@ class _BendingScreenState extends State<BendingScreen> {
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: _resetAll,
+                        onPressed: _confirmResetAll,
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: _text2,
-                          side: const BorderSide(color: _border),
+                          foregroundColor: c.text2,
+                          side: BorderSide(color: c.border),
                           shape: RoundedRectangleBorder(
                             borderRadius:
-                                BorderRadius.circular(_cardRadius),
+                                BorderRadius.circular(cardRadius),
                           ),
                           padding:
                               const EdgeInsets.symmetric(vertical: 14),
@@ -1018,12 +1204,12 @@ class _BendingScreenState extends State<BendingScreen> {
                       child: ElevatedButton(
                         onPressed: _prepareNextBend,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: _green,
+                          backgroundColor: c.accent,
                           foregroundColor: Colors.white,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
                             borderRadius:
-                                BorderRadius.circular(_cardRadius),
+                                BorderRadius.circular(cardRadius),
                           ),
                           padding:
                               const EdgeInsets.symmetric(vertical: 14),
@@ -1041,7 +1227,7 @@ class _BendingScreenState extends State<BendingScreen> {
                   ],
                 ),
               ),
-            _buildArButton(),
+            _buildArButton(c),
           ],
         ),
       ),
@@ -1050,52 +1236,65 @@ class _BendingScreenState extends State<BendingScreen> {
 
   // ─── 하단 AR 버튼 ─────────────────────────────────────
 
-  Widget _buildArButton() {
+  Widget _buildArButton(AppColors c) {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
       child: SizedBox(
         width: double.infinity,
         height: 52,
         child: ElevatedButton.icon(
-          onPressed: () async {
-            try {
-              final distance = await ArMeasureService.getDistance();
-              if (distance != null && mounted) {
-                setState(() {
-                  _insertController.text = distance.round().toString();
-                });
-              }
-            } on CameraPermissionDeniedException {
-              if (mounted) await _showPermissionDeniedDialog();
-            } on PlatformException catch (e) {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('AR 측정 오류: ${e.message}')),
-                );
-              }
-            } catch (e) {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('AR 오류: $e')),
-                );
-              }
-            }
-          },
-          icon: const Icon(Icons.camera_alt_outlined, size: 20),
-          label: const Text(
-            'AR 측정으로 입력',
-            style: TextStyle(
+          onPressed: _measuring
+              ? null
+              : () async {
+                  setState(() => _measuring = true);
+                  try {
+                    final distance = await ArMeasureService.getDistance();
+                    if (distance != null && mounted) {
+                      setState(() {
+                        _insertController.text = distance.round().toString();
+                      });
+                    }
+                  } on CameraPermissionDeniedException {
+                    if (mounted) await _showPermissionDeniedDialog();
+                  } on PlatformException catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('AR 측정 오류: ${e.message}')),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('AR 오류: $e')),
+                      );
+                    }
+                  }
+                  if (mounted) setState(() => _measuring = false);
+                },
+          icon: _measuring
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Icon(Icons.camera_alt_outlined, size: 20),
+          label: Text(
+            _measuring ? '측정 중...' : 'AR 측정으로 입력',
+            style: const TextStyle(
               fontFamily: 'DM Sans',
               fontSize: 15,
               fontWeight: FontWeight.w600,
             ),
           ),
           style: ElevatedButton.styleFrom(
-            backgroundColor: _red,
+            backgroundColor: c.primary,
             foregroundColor: Colors.white,
             elevation: 0,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(_cardRadius),
+              borderRadius: BorderRadius.circular(cardRadius),
             ),
           ),
         ),
@@ -1128,7 +1327,7 @@ class _BendEntry {
   final double angle;
   final BendDirection direction;
   final BendResult result;
-  final List<bool> stepsDone = [false, false, false, false];
+  final List<bool> stepsDone;
 
   bool get done => stepsDone.every((s) => s);
 
@@ -1139,7 +1338,45 @@ class _BendEntry {
     required this.angle,
     required this.direction,
     required this.result,
-  });
+    List<bool>? stepsDone,
+  }) : stepsDone = stepsDone ?? [false, false, false, false];
+
+  Map<String, dynamic> toJson() => {
+        'pipeOd': pipeOd,
+        'machine': machine.index,
+        'insertLen': insertLen,
+        'angle': angle,
+        'direction': direction.name,
+        'stepsDone': stepsDone,
+      };
+
+  factory _BendEntry.fromJson(Map<String, dynamic> json) {
+    final machine = Machine.values[json['machine'] as int];
+    final pipeOd = json['pipeOd'] as int;
+    final insertLen = (json['insertLen'] as num).toDouble();
+    final angle = (json['angle'] as num).toDouble();
+    final direction = BendDirection.values.byName(json['direction'] as String);
+    final steps = (json['stepsDone'] as List?)
+        ?.map((e) => e as bool)
+        .toList();
+
+    final result = BendingCalculator.calculate(
+      insertLength: insertLen,
+      targetAngle: angle,
+      pipeOd: pipeOd,
+      machine: machine,
+    );
+
+    return _BendEntry(
+      pipeOd: pipeOd,
+      machine: machine,
+      insertLen: insertLen,
+      angle: angle,
+      direction: direction,
+      result: result,
+      stepsDone: steps,
+    );
+  }
 }
 
 // ─── _RoutePainter ──────────────────────────────────────

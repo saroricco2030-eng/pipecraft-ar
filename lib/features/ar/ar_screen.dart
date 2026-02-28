@@ -5,11 +5,9 @@ import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../../services/ar_measure_service.dart';
 
-const _bgColor = Color(0xFFF5F3F0);
-const _red = Color(0xFFC8102E);
-const _cardRadius = 12.0;
 const _prefsKey = 'ar_measurements';
 
 class ArScreen extends StatefulWidget {
@@ -82,9 +80,30 @@ class _ArScreenState extends State<ArScreen> {
     _saveMeasurements();
   }
 
-  void _clearAll() {
-    setState(() => _measurements.clear());
-    _saveMeasurements();
+  void _confirmClearAll() {
+    if (_measurements.isEmpty) return;
+    final c = context.appColors;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('전체 삭제'),
+        content: Text('${_measurements.length}개의 측정 기록이 삭제됩니다.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              setState(() => _measurements.clear());
+              _saveMeasurements();
+            },
+            child: Text('삭제', style: TextStyle(color: c.primary)),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _showPermissionDeniedDialog() async {
@@ -119,10 +138,12 @@ class _ArScreenState extends State<ArScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.appColors;
+
     return Scaffold(
-      backgroundColor: _bgColor,
+      backgroundColor: c.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: c.card,
         elevation: 0,
         centerTitle: false,
         title: Row(
@@ -130,19 +151,16 @@ class _ArScreenState extends State<ArScreen> {
             Container(
               width: 8,
               height: 8,
-              decoration: const BoxDecoration(
-                color: _red,
-                shape: BoxShape.circle,
-              ),
+              decoration: BoxDecoration(color: c.primary, shape: BoxShape.circle),
             ),
             const SizedBox(width: 8),
-            const Text(
+            Text(
               'AR 측정',
               style: TextStyle(
                 fontFamily: 'DM Sans',
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF1A1A1A),
+                color: c.text,
                 letterSpacing: 0.5,
               ),
             ),
@@ -151,9 +169,9 @@ class _ArScreenState extends State<ArScreen> {
         actions: [
           if (_measurements.isNotEmpty)
             IconButton(
-              icon: const Icon(Icons.delete_sweep_outlined, color: Color(0xFF999999)),
+              icon: Icon(Icons.delete_sweep_outlined, color: c.text3),
               tooltip: '전체 삭제',
-              onPressed: _clearAll,
+              onPressed: _confirmClearAll,
             ),
         ],
       ),
@@ -161,42 +179,42 @@ class _ArScreenState extends State<ArScreen> {
         children: [
           Expanded(
             child: _measurements.isEmpty
-                ? _buildEmptyState()
-                : _buildMeasurementList(),
+                ? _buildEmptyState(c)
+                : _buildMeasurementList(c),
           ),
-          _buildMeasureButton(),
+          _buildMeasureButton(c),
         ],
       ),
     );
   }
 
-  Widget _buildEmptyState() {
-    return const Center(
+  Widget _buildEmptyState(AppColors c) {
+    return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
             Icons.straighten,
             size: 64,
-            color: Color(0xFFCCCCCC),
+            color: c.text3.withValues(alpha: 0.4),
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           Text(
             '측정 기록이 없습니다',
             style: TextStyle(
               fontFamily: 'DM Sans',
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF999999),
+              color: c.text3,
             ),
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Text(
             '아래 버튼을 눌러 AR 측정을 시작하세요',
             style: TextStyle(
               fontFamily: 'DM Sans',
               fontSize: 13,
-              color: Color(0xFFBBBBBB),
+              color: c.text3.withValues(alpha: 0.7),
             ),
           ),
         ],
@@ -204,17 +222,17 @@ class _ArScreenState extends State<ArScreen> {
     );
   }
 
-  Widget _buildMeasurementList() {
+  Widget _buildMeasurementList(AppColors c) {
     return ListView.separated(
       padding: const EdgeInsets.all(16),
       itemCount: _measurements.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 8),
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, i) {
         final dist = _measurements[i];
         return Container(
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(_cardRadius),
+            color: c.card,
+            borderRadius: BorderRadius.circular(cardRadius),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.04),
@@ -230,17 +248,17 @@ class _ArScreenState extends State<ArScreen> {
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: _red.withValues(alpha: 0.1),
+                  color: c.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 alignment: Alignment.center,
                 child: Text(
                   '${_measurements.length - i}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'DM Mono',
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: _red,
+                    color: c.primary,
                   ),
                 ),
               ),
@@ -250,17 +268,17 @@ class _ArScreenState extends State<ArScreen> {
                   label: '측정값 ${dist.round()} 밀리미터',
                   child: Text(
                     '${dist.round()} mm',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'DM Mono',
                       fontSize: 24,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF1A1A1A),
+                      color: c.text,
                     ),
                   ),
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.copy, size: 18, color: Color(0xFF999999)),
+                icon: Icon(Icons.copy, size: 18, color: c.text3),
                 tooltip: '복사',
                 onPressed: () {
                   Clipboard.setData(ClipboardData(text: dist.round().toString()));
@@ -273,7 +291,7 @@ class _ArScreenState extends State<ArScreen> {
                 },
               ),
               IconButton(
-                icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFF999999)),
+                icon: Icon(Icons.delete_outline, size: 18, color: c.text3),
                 tooltip: '삭제',
                 onPressed: () => _deleteMeasurement(i),
               ),
@@ -284,10 +302,10 @@ class _ArScreenState extends State<ArScreen> {
     );
   }
 
-  Widget _buildMeasureButton() {
+  Widget _buildMeasureButton(AppColors c) {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-      color: _bgColor,
+      color: c.background,
       child: SizedBox(
         width: double.infinity,
         height: 52,
@@ -312,11 +330,11 @@ class _ArScreenState extends State<ArScreen> {
             ),
           ),
           style: ElevatedButton.styleFrom(
-            backgroundColor: _red,
+            backgroundColor: c.primary,
             foregroundColor: Colors.white,
             elevation: 0,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(_cardRadius),
+              borderRadius: BorderRadius.circular(cardRadius),
             ),
           ),
         ),
