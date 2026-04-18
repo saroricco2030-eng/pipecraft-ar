@@ -1,40 +1,38 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'core/extensions/build_context_ext.dart';
+import 'core/storage/prefs_keys.dart';
 import 'core/theme/app_theme.dart';
-import 'features/bending/bending_screen.dart';
-import 'features/offset/offset_screen.dart';
-import 'features/ar/ar_screen.dart';
+import 'core/theme/theme_controller.dart';
+import 'features/splash/splash_screen.dart';
+import 'l10n/app_localizations.dart';
 
-void main() {
+/// Sentry DSN — 빌드 시 주입 (`--dart-define=SENTRY_DSN=https://...`).
+/// 비어있으면 Sentry는 자동으로 비활성화됨.
+const _kSentryDsn = String.fromEnvironment('SENTRY_DSN');
+
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
   ]);
-  runApp(const MyApp());
+
+  await SentryFlutter.init(
+    (options) {
+      options.dsn = _kSentryDsn;
+      options.debug = kDebugMode;
+      options.tracesSampleRate = kReleaseMode ? 0.1 : 0.0;
+      // PII 전송 금지 — CLAUDE.md 10번 (개인정보 보호)
+      options.sendDefaultPii = false;
+    },
+    appRunner: () => runApp(const MyApp()),
+  );
 }
 
-// ─── Theme Controller InheritedWidget ───────────────────
-class ThemeController extends InheritedWidget {
-  final ThemeMode themeMode;
-  final VoidCallback onCycleTheme;
-
-  const ThemeController({
-    super.key,
-    required this.themeMode,
-    required this.onCycleTheme,
-    required super.child,
-  });
-
-  static ThemeController? of(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<ThemeController>();
-
-  @override
-  bool updateShouldNotify(ThemeController old) => themeMode != old.themeMode;
-}
-
-// ─── App ────────────────────────────────────────────────
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
@@ -53,14 +51,9 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> _loadThemeMode() async {
     final prefs = await SharedPreferences.getInstance();
-    final mode = prefs.getString('theme_mode') ?? 'system';
-    setState(() {
-      _themeMode = switch (mode) {
-        'light' => ThemeMode.light,
-        'dark' => ThemeMode.dark,
-        _ => ThemeMode.system,
-      };
-    });
+    final stored = prefs.getString(PrefsKeys.themeMode);
+    if (!mounted) return;
+    setState(() => _themeMode = _parseThemeMode(stored));
   }
 
   void _cycleTheme() {
@@ -70,14 +63,17 @@ class _MyAppState extends State<MyApp> {
       ThemeMode.dark => ThemeMode.system,
     };
     setState(() => _themeMode = next);
-    SharedPreferences.getInstance().then((prefs) {
-      final key = switch (next) {
-        ThemeMode.light => 'light',
-        ThemeMode.dark => 'dark',
-        _ => 'system',
-      };
-      prefs.setString('theme_mode', key);
-    });
+    SharedPreferences.getInstance().then(
+      (prefs) => prefs.setString(PrefsKeys.themeMode, next.name),
+    );
+  }
+
+  static ThemeMode _parseThemeMode(String? name) {
+    if (name == null) return ThemeMode.system;
+    return ThemeMode.values.firstWhere(
+      (m) => m.name == name,
+      orElse: () => ThemeMode.system,
+    );
   }
 
   @override
@@ -86,66 +82,14 @@ class _MyAppState extends State<MyApp> {
       themeMode: _themeMode,
       onCycleTheme: _cycleTheme,
       child: MaterialApp(
-        title: 'PIPECRAFT AR',
+        onGenerateTitle: (context) => context.l10n.appTitle,
         debugShowCheckedModeBanner: false,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         theme: AppTheme.light(),
         darkTheme: AppTheme.dark(),
         themeMode: _themeMode,
-        home: const MainShell(),
-      ),
-    );
-  }
-}
-
-// ─── Main Shell ─────────────────────────────────────────
-class MainShell extends StatefulWidget {
-  const MainShell({super.key});
-
-  @override
-  State<MainShell> createState() => _MainShellState();
-}
-
-class _MainShellState extends State<MainShell> {
-  int _index = 0;
-
-  static const _screens = [
-    BendingScreen(),
-    OffsetScreen(),
-    ArScreen(),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.appColors;
-    return Scaffold(
-      body: IndexedStack(
-        index: _index,
-        children: _screens,
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
-        backgroundColor: c.navBar,
-        indicatorColor: c.primary.withValues(alpha: 0.1),
-        height: 64,
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        destinations: [
-          NavigationDestination(
-            icon: const Icon(Icons.straighten_outlined),
-            selectedIcon: Icon(Icons.straighten, color: c.primary),
-            label: '밴딩',
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.route_outlined),
-            selectedIcon: Icon(Icons.route, color: c.primary),
-            label: '오프셋',
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.camera_alt_outlined),
-            selectedIcon: Icon(Icons.camera_alt, color: c.primary),
-            label: 'AR 측정',
-          ),
-        ],
+        home: const SplashScreen(),
       ),
     );
   }

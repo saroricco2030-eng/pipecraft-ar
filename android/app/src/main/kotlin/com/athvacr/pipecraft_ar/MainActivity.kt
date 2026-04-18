@@ -26,7 +26,23 @@ class MainActivity : FlutterActivity() {
                     "getDistance" -> {
                         // 이전 요청이 미완료 상태면 취소 처리
                         pendingResult.getAndSet(result)?.success(null)
-                        val intent = Intent(this, ArMeasureActivity::class.java)
+
+                        val args = call.arguments as? Map<*, *>
+                        val strings = args?.get("strings") as? Map<*, *>
+                        val colors = args?.get("colors") as? Map<*, *>
+
+                        val intent = Intent(this, ArMeasureActivity::class.java).apply {
+                            strings?.forEach { (k, v) ->
+                                if (k is String && v is String) {
+                                    putExtra("str_$k", v)
+                                }
+                            }
+                            colors?.forEach { (k, v) ->
+                                if (k is String && v is String) {
+                                    putExtra("col_$k", v)
+                                }
+                            }
+                        }
                         @Suppress("DEPRECATION")
                         startActivityForResult(intent, AR_MEASURE_REQUEST)
                     }
@@ -48,11 +64,26 @@ class MainActivity : FlutterActivity() {
                 if (distance >= 0) {
                     result.success(distance)
                 } else {
-                    result.error("NO_DATA", "거리 데이터를 받지 못했습니다", null)
+                    result.error("NO_DATA", "No distance data received", null)
                 }
             } else {
                 result.success(null)
             }
         }
+    }
+
+    /**
+     * Activity가 파괴되면 대기 중인 Flutter Future가 영원히 멈추지 않도록
+     * pendingResult를 정리한다. (AR 도중 OS kill / 사용자 강제 종료 대비)
+     */
+    override fun onDestroy() {
+        pendingResult.getAndSet(null)?.let { pending ->
+            try {
+                pending.success(null)
+            } catch (_: IllegalStateException) {
+                // channel already closed — 무시
+            }
+        }
+        super.onDestroy()
     }
 }

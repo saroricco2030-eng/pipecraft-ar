@@ -2,13 +2,12 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/extensions/build_context_ext.dart';
+import '../../core/storage/prefs_keys.dart';
 import '../../core/theme/app_theme.dart';
 import '../../services/ar_measure_service.dart';
-
-const _prefsKey = 'ar_measurements';
 
 class ArScreen extends StatefulWidget {
   const ArScreen({super.key});
@@ -29,53 +28,58 @@ class _ArScreenState extends State<ArScreen> {
 
   Future<void> _loadMeasurements() async {
     final prefs = await SharedPreferences.getInstance();
-    final json = prefs.getString(_prefsKey);
-    if (json != null) {
-      final list = (jsonDecode(json) as List).cast<num>();
-      if (mounted) {
-        setState(() {
-          _measurements.addAll(list.map((e) => e.toDouble()));
-        });
+    final json = prefs.getString(PrefsKeys.arMeasurements);
+    if (json == null) return;
+
+    try {
+      final decoded = jsonDecode(json);
+      if (decoded is! List) throw const FormatException('not a list');
+
+      // 개별 엘리먼트 단위 복구 — 하나 깨져도 나머지는 살림
+      final valid = <double>[];
+      for (final e in decoded) {
+        if (e is num) {
+          final v = e.toDouble();
+          if (v.isFinite && v >= 0) valid.add(v);
+        }
       }
+
+      // 깨진 엔트리 있었으면 저장본 동기화
+      if (valid.length != decoded.length) {
+        await prefs.setString(PrefsKeys.arMeasurements, jsonEncode(valid));
+      }
+
+      if (mounted) setState(() => _measurements.addAll(valid));
+    } catch (e) {
+      debugPrint('ArScreen: JSON decode failed — clearing');
+      await prefs.remove(PrefsKeys.arMeasurements);
     }
   }
 
   Future<void> _saveMeasurements() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_prefsKey, jsonEncode(_measurements));
+    await prefs.setString(PrefsKeys.arMeasurements, jsonEncode(_measurements));
   }
 
   Future<void> _startMeasure() async {
+    if (_measuring) return;
     setState(() => _measuring = true);
-    try {
-      final distance = await ArMeasureService.getDistance();
-      if (distance != null && mounted) {
-        setState(() {
-          _measurements.insert(0, distance);
-          _measuring = false;
-        });
-        _saveMeasurements();
-        return;
-      }
-    } on CameraPermissionDeniedException {
-      if (mounted) await _showPermissionDeniedDialog();
-    } on PlatformException {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('AR 측정 중 오류가 발생했습니다')),
-        );
-      }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('AR 오류가 발생했습니다. 다시 시도해주세요')),
-        );
-      }
+    final distance = await ArMeasure.measureWithUi(context);
+    if (!mounted) return;
+    if (distance != null) {
+      HapticFeedback.mediumImpact();
+      setState(() {
+        _measurements.insert(0, distance);
+        _measuring = false;
+      });
+      _saveMeasurements();
+    } else {
+      setState(() => _measuring = false);
     }
-    if (mounted) setState(() => _measuring = false);
   }
 
   void _deleteMeasurement(int i) {
+    HapticFeedback.lightImpact();
     setState(() => _measurements.removeAt(i));
     _saveMeasurements();
   }
@@ -86,55 +90,27 @@ class _ArScreenState extends State<ArScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('전체 삭제'),
-        content: Text('${_measurements.length}개의 측정 기록이 삭제됩니다.'),
+        title: Text(context.l10n.arConfirmClearAllTitle),
+        content: Text(context.l10n.arClearAllConfirmMessage(_measurements.length)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('취소'),
+            child: Text(context.l10n.commonCancel),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
+              HapticFeedback.mediumImpact();
               setState(() => _measurements.clear());
               _saveMeasurements();
             },
-            child: Text('삭제', style: TextStyle(color: c.primary)),
+            child: Text(context.l10n.commonDelete, style: TextStyle(color: c.primary)),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _showPermissionDeniedDialog() async {
-    final permanentlyDenied = await ArMeasureService.isPermanentlyDenied();
-    if (!mounted) return;
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('카메라 권한 필요'),
-        content: Text(
-          permanentlyDenied
-              ? 'AR 측정을 사용하려면 설정에서 카메라 권한을 허용해주세요.'
-              : 'AR 측정을 사용하려면 카메라 권한이 필요합니다.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('취소'),
-          ),
-          if (permanentlyDenied)
-            TextButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                openAppSettings();
-              },
-              child: const Text('설정으로 이동'),
-            ),
-        ],
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -155,7 +131,7 @@ class _ArScreenState extends State<ArScreen> {
             ),
             const SizedBox(width: 8),
             Text(
-              'AR 측정',
+              context.l10n.arScreenTitle,
               style: TextStyle(
                 fontFamily: 'DM Sans',
                 fontSize: 18,
@@ -170,7 +146,7 @@ class _ArScreenState extends State<ArScreen> {
           if (_measurements.isNotEmpty)
             IconButton(
               icon: Icon(Icons.delete_sweep_outlined, color: c.text3),
-              tooltip: '전체 삭제',
+              tooltip: context.l10n.arDeleteAllTooltip,
               onPressed: _confirmClearAll,
             ),
         ],
@@ -200,7 +176,7 @@ class _ArScreenState extends State<ArScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            '측정 기록이 없습니다',
+            context.l10n.arEmptyTitle,
             style: TextStyle(
               fontFamily: 'DM Sans',
               fontSize: 16,
@@ -210,7 +186,7 @@ class _ArScreenState extends State<ArScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            '아래 버튼을 눌러 AR 측정을 시작하세요',
+            context.l10n.arEmptyHint,
             style: TextStyle(
               fontFamily: 'DM Sans',
               fontSize: 13,
@@ -226,7 +202,7 @@ class _ArScreenState extends State<ArScreen> {
     return ListView.separated(
       padding: const EdgeInsets.all(16),
       itemCount: _measurements.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
       itemBuilder: (context, i) {
         final dist = _measurements[i];
         return Container(
@@ -235,21 +211,22 @@ class _ArScreenState extends State<ArScreen> {
             borderRadius: BorderRadius.circular(cardRadius),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
+                color: c.shadow,
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
             ],
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
           child: Row(
             children: [
+              // 넘버 배지 36dp
               Container(
-                width: 32,
-                height: 32,
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
                   color: c.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 alignment: Alignment.center,
                 child: Text(
@@ -257,43 +234,63 @@ class _ArScreenState extends State<ArScreen> {
                   style: TextStyle(
                     fontFamily: 'DM Mono',
                     fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                     color: c.primary,
                   ),
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 14),
+              // 큰 숫자 — 한눈에
               Expanded(
                 child: Semantics(
-                  label: '측정값 ${dist.round()} 밀리미터',
-                  child: Text(
-                    '${dist.round()} mm',
-                    style: TextStyle(
-                      fontFamily: 'DM Mono',
-                      fontSize: 24,
-                      fontWeight: FontWeight.w600,
-                      color: c.text,
+                  label: context.l10n.arMeasurementLabel(dist.round()),
+                  child: RichText(
+                    text: TextSpan(
+                      children: [
+                        TextSpan(
+                          text: '${dist.round()}',
+                          style: TextStyle(
+                            fontFamily: 'DM Mono',
+                            fontSize: 30,
+                            fontWeight: FontWeight.w700,
+                            color: c.text,
+                            height: 1.0,
+                          ),
+                        ),
+                        TextSpan(
+                          text: ' mm',
+                          style: TextStyle(
+                            fontFamily: 'DM Sans',
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: c.text3,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ),
-              IconButton(
-                icon: Icon(Icons.copy, size: 18, color: c.text3),
-                tooltip: '복사',
-                onPressed: () {
-                  Clipboard.setData(ClipboardData(text: dist.round().toString()));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('클립보드에 복사되었습니다'),
-                      duration: Duration(seconds: 1),
-                    ),
-                  );
-                },
+              // 복사 (터치 타겟 48dp)
+              SizedBox(
+                width: 48,
+                height: 48,
+                child: IconButton(
+                  icon: Icon(Icons.copy_rounded, size: 20, color: c.text3),
+                  tooltip: context.l10n.commonCopyTooltip,
+                  onPressed: () => _copyMeasurement(dist),
+                ),
               ),
-              IconButton(
-                icon: Icon(Icons.delete_outline, size: 18, color: c.text3),
-                tooltip: '삭제',
-                onPressed: () => _deleteMeasurement(i),
+              // 삭제 (터치 타겟 48dp)
+              SizedBox(
+                width: 48,
+                height: 48,
+                child: IconButton(
+                  icon: Icon(Icons.delete_outline_rounded,
+                      size: 20, color: c.text3),
+                  tooltip: context.l10n.commonDeleteTooltip,
+                  onPressed: () => _deleteMeasurement(i),
+                ),
               ),
             ],
           ),
@@ -302,27 +299,41 @@ class _ArScreenState extends State<ArScreen> {
     );
   }
 
+  /// 단일 측정값 복사 — 단위(mm) 포함된 문자열
+  void _copyMeasurement(double dist) {
+    HapticFeedback.lightImpact();
+    Clipboard.setData(ClipboardData(text: '${dist.round()} mm'));
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(context.l10n.commonCopiedToClipboard),
+          duration: const Duration(seconds: 1),
+        ),
+      );
+  }
+
   Widget _buildMeasureButton(AppColors c) {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
       color: c.background,
       child: SizedBox(
         width: double.infinity,
-        height: 52,
+        height: 56,
         child: ElevatedButton.icon(
           onPressed: _measuring ? null : _startMeasure,
           icon: _measuring
-              ? const SizedBox(
+              ? SizedBox(
                   width: 20,
                   height: 20,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: Colors.white,
+                    color: c.onPrimary,
                   ),
                 )
               : const Icon(Icons.camera_alt_outlined, size: 20),
           label: Text(
-            _measuring ? '측정 중...' : 'AR 측정 시작',
+            _measuring ? context.l10n.arMeasuringLabel : context.l10n.arStartMeasureButton,
             style: const TextStyle(
               fontFamily: 'DM Sans',
               fontSize: 15,
@@ -331,7 +342,7 @@ class _ArScreenState extends State<ArScreen> {
           ),
           style: ElevatedButton.styleFrom(
             backgroundColor: c.primary,
-            foregroundColor: Colors.white,
+            foregroundColor: c.onPrimary,
             elevation: 0,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(cardRadius),

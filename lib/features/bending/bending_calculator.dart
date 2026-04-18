@@ -1,4 +1,4 @@
-import 'dart:math';
+import 'dart:math' show pi, sin, cos;
 
 import '../../core/constants/pipe_specs.dart';
 import '../../core/models/bend_result.dart';

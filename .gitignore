@@ -45,3 +45,21 @@ app.*.map.json
 /android/app/release
 /android/build/
 .claude/settings.local.json
+
+# 생성된 l10n 파일 (빌드 산출물 — flutter gen-l10n으로 재생성)
+lib/l10n/app_localizations.dart
+lib/l10n/app_localizations_*.dart
+
+# 프로젝트 아카이브·백업
+*.zip
+*.tar.gz
+*.bak
+
+# Android 서명 키 (C#1 — 절대 커밋 금지)
+android/key.properties
+android/app/upload-keystore.jks
+android/app/*.keystore
+android/app/*.jks
+
+# Sentry 디버그 심볼
+build/debug-info/

@@ -13,6 +13,14 @@ enum Machine {
   const Machine(this.label);
 }
 
+/// 좁은 UI(설정 pill, 꺾기 카드)에서 사용할 짧은 모델명.
+extension MachineShortLabelX on Machine {
+  String get shortLabel => switch (this) {
+        Machine.robend4000 => 'R4000',
+        Machine.remsCurvo => 'Curvo',
+      };
+}
+
 const Map<int, PipeSpec> pipeSpecs = {
   15: PipeSpec(od: 15, minRadius: 45),
   19: PipeSpec(od: 19, minRadius: 57),

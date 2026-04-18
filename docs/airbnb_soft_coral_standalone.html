@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Soft Coral Layout Reference</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:#FFF9F5;color:#2A1F1F;min-height:100vh}
+
+/* Topbar */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 40px;border-bottom:1px solid #F0E6DD;position:sticky;top:0;background:#FFF9F5;z-index:10}
+.logo{font-size:24px;font-weight:700;color:#E8876B;letter-spacing:-.03em}
+.search{display:flex;align-items:center;border:1px solid #E8D5C8;border-radius:40px;padding:8px 8px 8px 24px;box-shadow:0 1px 2px rgba(42,31,31,0.04),0 4px 12px rgba(42,31,31,0.03);gap:12px;cursor:pointer;transition:box-shadow .2s}
+.search:hover{box-shadow:0 2px 4px rgba(42,31,31,0.12)}
+.search-text{font-size:13px;font-weight:500}
+.search-text span{color:#9E8A7E;font-weight:400}
+.search-divider{width:1px;height:24px;background:#E8D5C8}
+.search-icon{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#E8876B,#D4725A);display:flex;align-items:center;justify-content:center}
+.topbar-right{display:flex;gap:16px;align-items:center}
+.topbar-right span{font-size:13px;font-weight:500;color:#5A4A42}
+.avatar{width:36px;height:36px;border-radius:50%;border:1px solid #E8D5C8;display:flex;align-items:center;justify-content:center}
+
+/* Categories */
+.categories{display:flex;gap:28px;padding:16px 40px;overflow-x:auto;border-bottom:1px solid #F0E6DD;scrollbar-width:none}
+.categories::-webkit-scrollbar{display:none}
+.category{display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;opacity:.5;transition:all .2s;padding-bottom:10px;border-bottom:2px solid transparent;flex-shrink:0}
+.category:hover{opacity:.8}
+.category.active{opacity:1;border-bottom-color:#E8876B}
+.category-icon{font-size:22px}
+.category-label{font-size:11px;white-space:nowrap;font-weight:500;color:#5A4A42}
+
+/* Card Grid */
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;padding:24px 40px}
+.card{cursor:pointer}
+.card-img{width:100%;aspect-ratio:1;border-radius:16px;margin-bottom:12px;position:relative;overflow:hidden}
+.card-heart{position:absolute;top:12px;right:12px;font-size:20px;cursor:pointer;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.2))}
+.card-top{display:flex;justify-content:space-between;margin-bottom:2px}
+.card-title{font-size:14px;font-weight:600;color:#2A1F1F}
+.card-rating{font-size:13px;display:flex;align-items:center;gap:3px;color:#5A4A42}
+.card-location{font-size:13px;color:#9E8A7E}
+.card-date{font-size:13px;color:#9E8A7E;margin-top:2px}
+.card-price{font-size:14px;margin-top:6px;color:#2A1F1F}
+.card-price strong{font-weight:600}
+
+/* Pastel image placeholders */
+.img-1{background:linear-gradient(135deg,#FECAB0,#F5A0B8)}
+.img-2{background:linear-gradient(135deg,#B8D8E8,#A0C8E0)}
+.img-3{background:linear-gradient(135deg,#C5E8C0,#A0D8A0)}
+.img-4{background:linear-gradient(135deg,#F0D0A0,#E8B880)}
+.img-5{background:linear-gradient(135deg,#D8C0E8,#C0A0D8)}
+.img-6{background:linear-gradient(135deg,#A0D8D0,#80C8C0)}
+.img-7{background:linear-gradient(135deg,#F8D0C0,#F0B8A0)}
+.img-8{background:linear-gradient(135deg,#C0D0F0,#A0B8E8)}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">airbnb</div>
+  <div class="search">
+    <div class="search-text">Anywhere</div>
+    <div class="search-divider"></div>
+    <div class="search-text">Any week</div>
+    <div class="search-divider"></div>
+    <div class="search-text"><span>Add guests</span></div>
+    <div class="search-icon">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <span>Become a Host</span>
+    <div class="avatar">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="#9E8A7E"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-7 8-7s8 3 8 7"/></svg>
+    </div>
+  </div>
+</div>
+
+<div class="categories">
+  <div class="category active"><div class="category-icon">🏠</div><div class="category-label">Icons</div></div>
+  <div class="category"><div class="category-icon">🏖️</div><div class="category-label">Beach</div></div>
+  <div class="category"><div class="category-icon">⛰️</div><div class="category-label">Mountains</div></div>
+  <div class="category"><div class="category-icon">🏡</div><div class="category-label">Cabins</div></div>
+  <div class="category"><div class="category-icon">🌊</div><div class="category-label">Lakefront</div></div>
+  <div class="category"><div class="category-icon">🏰</div><div class="category-label">Castles</div></div>
+  <div class="category"><div class="category-icon">🌴</div><div class="category-label">Tropical</div></div>
+  <div class="category"><div class="category-icon">🏕️</div><div class="category-label">Camping</div></div>
+  <div class="category"><div class="category-icon">🎿</div><div class="category-label">Skiing</div></div>
+  <div class="category"><div class="category-icon">🌿</div><div class="category-label">Countryside</div></div>
+  <div class="category"><div class="category-icon">🏗️</div><div class="category-label">Design</div></div>
+  <div class="category"><div class="category-icon">🛖</div><div class="category-label">A-frames</div></div>
+</div>
+
+<div class="grid">
+  <div class="card"><div class="card-img"><div class="img-1" style="width:100%;height:100%;border-radius:16px"><span class="card-heart">♡</span></div></div><div class="card-top"><div class="card-title">Seoul, South Korea</div><div class="card-rating">★ 4.92</div></div><div class="card-location">Hanok Village</div><div class="card-date">Mar 15–20</div><div class="card-price"><strong>₩128,000</strong> night</div></div>
+  <div class="card"><div class="card-img"><div class="img-2" style="width:100%;height:100%;border-radius:16px"><span class="card-heart">♡</span></div></div><div class="card-top"><div class="card-title">Jeju Island</div><div class="card-rating">★ 4.88</div></div><div class="card-location">Ocean view villa</div><div class="card-date">Mar 22–27</div><div class="card-price"><strong>₩245,000</strong> night</div></div>
+  <div class="card"><div class="card-img"><div class="img-3" style="width:100%;height:100%;border-radius:16px"><span class="card-heart">♡</span></div></div><div class="card-top"><div class="card-title">Kyoto, Japan</div><div class="card-rating">★ 4.95</div></div><div class="card-location">Traditional Machiya</div><div class="card-date">Apr 1–6</div><div class="card-price"><strong>¥18,500</strong> night</div></div>
+  <div class="card"><div class="card-img"><div class="img-4" style="width:100%;height:100%;border-radius:16px"><span class="card-heart">♡</span></div></div><div class="card-top"><div class="card-title">Bali, Indonesia</div><div class="card-rating">★ 4.97</div></div><div class="card-location">Rice terrace villa</div><div class="card-date">Apr 10–15</div><div class="card-price"><strong>$89</strong> night</div></div>
+  <div class="card"><div class="card-img"><div class="img-5" style="width:100%;height:100%;border-radius:16px"><span class="card-heart">♡</span></div></div><div class="card-top"><div class="card-title">Santorini, Greece</div><div class="card-rating">★ 4.93</div></div><div class="card-location">Cliffside cave house</div><div class="card-date">May 1–6</div><div class="card-price"><strong>€175</strong> night</div></div>
+  <div class="card"><div class="card-img"><div class="img-6" style="width:100%;height:100%;border-radius:16px"><span class="card-heart">♡</span></div></div><div class="card-top"><div class="card-title">Maldives</div><div class="card-rating">★ 4.98</div></div><div class="card-location">Overwater bungalow</div><div class="card-date">May 8–13</div><div class="card-price"><strong>$320</strong> night</div></div>
+  <div class="card"><div class="card-img"><div class="img-7" style="width:100%;height:100%;border-radius:16px"><span class="card-heart">♡</span></div></div><div class="card-top"><div class="card-title">Swiss Alps</div><div class="card-rating">★ 4.91</div></div><div class="card-location">Mountain chalet</div><div class="card-date">Jun 2–7</div><div class="card-price"><strong>CHF 210</strong> night</div></div>
+  <div class="card"><div class="card-img"><div class="img-8" style="width:100%;height:100%;border-radius:16px"><span class="card-heart">♡</span></div></div><div class="card-top"><div class="card-title">Amalfi Coast</div><div class="card-rating">★ 4.96</div></div><div class="card-location">Lemon terrace suite</div><div class="card-date">Jun 15–20</div><div class="card-price"><strong>€195</strong> night</div></div>
+</div>
+
+<script>
+document.querySelectorAll('.category').forEach(cat=>{
+  cat.addEventListener('click',()=>{
+    document.querySelectorAll('.category').forEach(c=>c.classList.remove('active'));
+    cat.classList.add('active');
+  });
+});
+</script>
+</body>
+</html>

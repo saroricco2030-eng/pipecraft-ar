@@ -1,8 +1,6 @@
 name: pipe_craft_ar
-description: "A new Flutter project."
-# The following line prevents the package from being accidentally published to
-# pub.dev using `flutter pub publish`. This is preferred for private packages.
-publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+description: "HVAC-R 현장 기술자용 배관 밴딩·오프셋 계산 및 AR 거리 측정 도구"
+publish_to: 'none'
 
 # The following defines the version and build number for your application.
 # A version number is three numbers separated by dots, like 1.2.43
@@ -30,9 +28,13 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  intl: ^0.20.2
 
   permission_handler: ^11.3.0
-  shared_preferences: ^2.3.0
+  shared_preferences: ^2.5.0
+  sentry_flutter: ^9.0.0
 
 dev_dependencies:
   flutter_test:
@@ -45,16 +47,43 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
 
+  # 앱 아이콘 자동 생성 (Android adaptive + legacy mipmap)
+  flutter_launcher_icons: ^0.14.0
+  flutter_native_splash: ^2.4.0
+
+# 앱 아이콘 설정 — `dart run flutter_launcher_icons` 로 생성
+flutter_launcher_icons:
+  android: "ic_launcher"
+  ios: false
+  image_path: "assets/icon/app_icon.png"
+  min_sdk_android: 24
+  adaptive_icon_background: "#303839"
+  adaptive_icon_foreground: "assets/icon/app_icon_fg.png"
+  remove_alpha_ios: true
+
+# 스플래시 화면 설정 — `dart run flutter_native_splash:create` 로 생성
+flutter_native_splash:
+  color: "#0C1216"
+  image: assets/splash/splash.png
+  android: true
+  ios: false
+  android_12:
+    color: "#0C1216"
+    image: assets/splash/splash.png
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
-# The following section is specific to Flutter packages.
 flutter:
+  generate: true
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  assets:
+    - assets/splash/splash.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:

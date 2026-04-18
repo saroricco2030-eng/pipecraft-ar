@@ -3,6 +3,7 @@ package com.athvacr.pipecraft_ar
 import android.app.Activity
 import android.content.Intent
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.opengl.GLES20
 import android.opengl.GLSurfaceView
 import android.os.Bundle
@@ -42,7 +43,58 @@ class ArMeasureActivity : Activity(), GLSurfaceView.Renderer {
         private const val TAG = "ArMeasureActivity"
         const val EXTRA_DISTANCE_MM = "distance_mm"
         private const val APPROXIMATE_DISTANCE_M = 2.0f
+        // UI 업데이트 throttle: onDrawFrame에서 매 프레임 runOnUiThread 하면
+        // UI 스레드에 초당 60회 post됨. 100ms = 10fps면 사용자 인지로 충분.
+        private const val UI_UPDATE_THROTTLE_MS = 100L
+
+        // 렌더링 컬러 — 매 프레임 새로 할당하지 않도록 companion 상수로 hoist
+        private val ANCHOR_COLOR = floatArrayOf(1f, 0.62f, 0.04f, 1f)
+        private val FIRST_POINT_COLOR = floatArrayOf(0.22f, 0.74f, 0.97f, 1f)
+        private val LINE_COLOR = floatArrayOf(0.22f, 0.74f, 0.97f, 1f)
     }
+
+    // 매 프레임 재사용 — onDrawFrame에서 GC 압박 줄이기
+    private val anchorSnapshot = ArrayList<Anchor>(16)
+    private val positions = ArrayList<FloatArray>(16)
+    private val segmentDists = ArrayList<Double>(16)
+
+    // ── i18n Strings (Flutter에서 Intent로 주입) ─────
+    private data class ArStrings(
+        val scanHint: String,
+        val trackingLost: String,
+        val planeNotDetected: String,
+        val tapFirstPoint: String,
+        val tapSecondPoint: String,
+        val multiPointTemplate: String,
+        val noSurface: String,
+        val btnUndo: String,
+        val btnReset: String,
+        val btnConfirm: String,
+        val totalPrefix: String,
+        val segmentTemplate: String,
+        val errorDeviceUnsupported: String,
+        val errorApkTooOld: String,
+        val errorSdkTooOld: String,
+        val errorSessionInit: String,
+        val errorCameraUnavailable: String,
+    ) {
+        fun multiPoint(count: Int) =
+            multiPointTemplate.replace("{count}", count.toString())
+
+        fun segment(index: Int, distance: String) = segmentTemplate
+            .replace("{index}", index.toString())
+            .replace("{distance}", distance)
+    }
+
+    // ── Colors (Flutter에서 Intent로 주입) ────────────
+    private data class ArColors(
+        val primary: Int,
+        val secondary: Int,
+        val onPrimary: Int,
+    )
+
+    private lateinit var strings: ArStrings
+    private lateinit var colors: ArColors
 
     private lateinit var glSurfaceView: GLSurfaceView
     private lateinit var statusText: TextView
@@ -59,7 +111,6 @@ class ArMeasureActivity : Activity(), GLSurfaceView.Renderer {
     private val backgroundRenderer = BackgroundRenderer()
     private val pointLineRenderer = PointLineRenderer()
 
-    // ── 스레드 공유 상태 ──
     // anchors는 GL 스레드(onDrawFrame, handleTap)와 UI 스레드(undo, reset)에서 접근
     private val anchorLock = Any()
     private val anchors = mutableListOf<Anchor>()
@@ -81,9 +132,13 @@ class ArMeasureActivity : Activity(), GLSurfaceView.Renderer {
     private var viewportChanged = false
 
     private var lastStatusUpdate = 0L
+    private var lastDistanceUpdate = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        strings = readStrings(intent)
+        colors = readColors(intent)
 
         val root = FrameLayout(this).apply {
             layoutParams = FrameLayout.LayoutParams(
@@ -101,7 +156,6 @@ class ArMeasureActivity : Activity(), GLSurfaceView.Renderer {
         }
         root.addView(glSurfaceView)
 
-        // --- Overlay UI ---
         val overlay = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
@@ -112,7 +166,7 @@ class ArMeasureActivity : Activity(), GLSurfaceView.Renderer {
         }
 
         statusText = TextView(this).apply {
-            text = "카메라를 천천히 움직여 주변을 스캔하세요"
+            text = strings.scanHint
             setTextColor(Color.WHITE)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
             gravity = Gravity.CENTER
@@ -147,7 +201,7 @@ class ArMeasureActivity : Activity(), GLSurfaceView.Renderer {
 
         segmentInfoText = TextView(this).apply {
             text = ""
-            setTextColor(Color.parseColor("#BBBBBB"))
+            setTextColor(Color.parseColor("#CCCCCC"))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
             gravity = Gravity.CENTER
             setShadowLayer(4f, 0f, 0f, Color.BLACK)
@@ -166,25 +220,28 @@ class ArMeasureActivity : Activity(), GLSurfaceView.Renderer {
             visibility = View.GONE
         }
 
-        undoButton = makeButton("되돌리기", Color.parseColor("#444444")).apply {
+        // CLAUDE.md 터치 기준: 일반 버튼 56dp. 장갑 환경 대응.
+        val btnHeight = dp(56)
+
+        undoButton = makeButton(strings.btnUndo, colors.secondary, colors.onPrimary).apply {
             setOnClickListener { undoLastPoint() }
         }
         buttonContainer.addView(undoButton, LinearLayout.LayoutParams(
-            0, dp(48), 1f
+            0, btnHeight, 1f
         ).apply { setMargins(0, 0, dp(6), 0) })
 
-        resetButton = makeButton("초기화", Color.parseColor("#555555")).apply {
+        resetButton = makeButton(strings.btnReset, colors.secondary, colors.onPrimary).apply {
             setOnClickListener { resetMeasurement() }
         }
         buttonContainer.addView(resetButton, LinearLayout.LayoutParams(
-            0, dp(48), 1f
+            0, btnHeight, 1f
         ).apply { setMargins(dp(6), 0, dp(6), 0) })
 
-        confirmButton = makeButton("확인", Color.parseColor("#C8102E")).apply {
+        confirmButton = makeButton(strings.btnConfirm, colors.primary, colors.onPrimary).apply {
             setOnClickListener { confirmMeasurement() }
         }
         buttonContainer.addView(confirmButton, LinearLayout.LayoutParams(
-            0, dp(48), 1f
+            0, btnHeight, 1.4f
         ).apply { setMargins(dp(6), 0, 0, 0) })
 
         overlay.addView(buttonContainer, LinearLayout.LayoutParams(
@@ -206,6 +263,43 @@ class ArMeasureActivity : Activity(), GLSurfaceView.Renderer {
         setContentView(root)
     }
 
+    private fun readStrings(intent: Intent): ArStrings {
+        fun s(k: String, fallback: String) =
+            intent.getStringExtra("str_$k") ?: fallback
+        return ArStrings(
+            scanHint = s("scanHint", "Slowly move the camera to scan the area"),
+            trackingLost = s("trackingLost", "Tracking…"),
+            planeNotDetected = s("planeNotDetected", "Scan a floor or wall"),
+            tapFirstPoint = s("tapFirstPoint", "Tap a start point"),
+            tapSecondPoint = s("tapSecondPoint", "Tap the second point"),
+            multiPointTemplate = s("multiPointTemplate", "Point {count} · tap to add more"),
+            noSurface = s("noSurface", "No surface at tap"),
+            btnUndo = s("btnUndo", "Undo"),
+            btnReset = s("btnReset", "Reset"),
+            btnConfirm = s("btnConfirm", "Confirm"),
+            totalPrefix = s("totalPrefix", "Total"),
+            segmentTemplate = s("segmentTemplate", "#{index}: {distance}"),
+            errorDeviceUnsupported = s("errorDeviceUnsupported", "ARCore unsupported"),
+            errorApkTooOld = s("errorApkTooOld", "ARCore needs update"),
+            errorSdkTooOld = s("errorSdkTooOld", "App needs update"),
+            errorSessionInit = s("errorSessionInit", "Failed to init AR"),
+            errorCameraUnavailable = s("errorCameraUnavailable", "Camera unavailable"),
+        )
+    }
+
+    private fun readColors(intent: Intent): ArColors {
+        fun parse(k: String, fallback: String): Int = try {
+            Color.parseColor(intent.getStringExtra("col_$k") ?: fallback)
+        } catch (_: IllegalArgumentException) {
+            Color.parseColor(fallback)
+        }
+        return ArColors(
+            primary = parse("primary", "#FFE8876B"),       // Coral Soft
+            secondary = parse("secondary", "#FF424242"),   // neutral dark
+            onPrimary = parse("onPrimary", "#FFFFFFFF"),
+        )
+    }
+
     // --- Lifecycle ---
 
     override fun onResume() {
@@ -225,7 +319,6 @@ class ArMeasureActivity : Activity(), GLSurfaceView.Renderer {
                         depthMode = Config.DepthMode.DISABLED
                         lightEstimationMode = Config.LightEstimationMode.DISABLED
                         updateMode = Config.UpdateMode.LATEST_CAMERA_IMAGE
-                        // Instant Placement — 평면 감지 전에도 포인트 배치 가능
                         instantPlacementMode = Config.InstantPlacementMode.LOCAL_Y_UP
                     }
                     configure(config)
@@ -236,17 +329,17 @@ class ArMeasureActivity : Activity(), GLSurfaceView.Renderer {
                     sessionNeedsTextureName = true
                 }
             } catch (e: UnavailableDeviceNotCompatibleException) {
-                showToastAndFinish("이 기기는 ARCore를 지원하지 않습니다")
+                showToastAndFinish(strings.errorDeviceUnsupported)
                 return
             } catch (e: UnavailableApkTooOldException) {
-                showToastAndFinish("ARCore 업데이트가 필요합니다")
+                showToastAndFinish(strings.errorApkTooOld)
                 return
             } catch (e: UnavailableSdkTooOldException) {
-                showToastAndFinish("앱 업데이트가 필요합니다")
+                showToastAndFinish(strings.errorSdkTooOld)
                 return
             } catch (e: Exception) {
                 Log.e(TAG, "AR session init failed", e)
-                showToastAndFinish("AR 세션 초기화에 실패했습니다")
+                showToastAndFinish(strings.errorSessionInit)
                 return
             }
         }
@@ -254,7 +347,7 @@ class ArMeasureActivity : Activity(), GLSurfaceView.Renderer {
         try {
             arSession?.resume()
         } catch (e: CameraNotAvailableException) {
-            showToastAndFinish("카메라를 사용할 수 없습니다")
+            showToastAndFinish(strings.errorCameraUnavailable)
             return
         }
 
@@ -269,6 +362,10 @@ class ArMeasureActivity : Activity(), GLSurfaceView.Renderer {
 
     override fun onDestroy() {
         super.onDestroy()
+        synchronized(anchorLock) {
+            for (anchor in anchors) anchor.detach()
+            anchors.clear()
+        }
         arSession?.close()
         arSession = null
     }
@@ -317,67 +414,64 @@ class ArMeasureActivity : Activity(), GLSurfaceView.Renderer {
         backgroundRenderer.draw(frame)
 
         val camera = frame.camera
+
+        // Tracking 유실 시 planeDetected 리셋 → 다음 tracking 복원에서 재검증
         if (camera.trackingState != TrackingState.TRACKING) {
-            updateStatus("추적 중... 카메라를 천천히 움직여주세요")
+            planeDetected = false
+            updateStatus(strings.trackingLost)
             return
         }
 
-        // 평면 감지 여부 확인 → 상태 메시지 업데이트
-        if (!planeDetected) {
-            val hasPlane = session.getAllTrackables(Plane::class.java).any {
-                it.trackingState == TrackingState.TRACKING
-            }
-            if (hasPlane) {
-                planeDetected = true
-            }
+        // 매 프레임 평면 존재 재평가 — planeDetected는 과거 상태가 아닌 현재 상태
+        val hasPlane = session.getAllTrackables(Plane::class.java).any {
+            it.trackingState == TrackingState.TRACKING
         }
+        planeDetected = hasPlane
 
         camera.getViewMatrix(viewMatrix, 0)
         camera.getProjectionMatrix(projMatrix, 0, 0.1f, 100f)
 
-        // 터치 처리
         if (hasPendingTap) {
             hasPendingTap = false
             handleTap(frame)
         }
 
-        // 앵커 스냅샷 → 렌더링 (동기화 블록 최소화)
-        val anchorSnapshot: List<Anchor>
+        // anchor 스냅샷 — 재사용 가능한 멤버 ArrayList
+        anchorSnapshot.clear()
         synchronized(anchorLock) {
-            anchorSnapshot = anchors.toList()
+            anchorSnapshot.addAll(anchors)
         }
 
         if (anchorSnapshot.isEmpty()) {
-            if (planeDetected) {
-                updateStatus("측정할 시작점을 터치하세요")
-            } else {
-                updateStatus("바닥이나 벽을 향해 천천히 스캔하세요")
-            }
+            updateStatus(
+                if (planeDetected) strings.tapFirstPoint else strings.planeNotDetected
+            )
         }
 
         GLES20.glEnable(GLES20.GL_DEPTH_TEST)
-        val anchorColor = floatArrayOf(1f, 0.62f, 0.04f, 1f)
-        val firstPointColor = floatArrayOf(0.22f, 0.74f, 0.97f, 1f)
-        val lineColor = floatArrayOf(0.22f, 0.74f, 0.97f, 1f)
 
-        val positions = mutableListOf<FloatArray>()
+        positions.clear()
         for (anchor in anchorSnapshot) {
             if (anchor.trackingState == TrackingState.TRACKING) {
                 val pose = anchor.pose
+                // pos FloatArray는 매 프레임 alloc 불가피 (드로우 콜에 넘김)
                 val pos = floatArrayOf(pose.tx(), pose.ty(), pose.tz())
                 positions.add(pos)
-                val color = if (positions.size == 1) firstPointColor else anchorColor
+                val color = if (positions.size == 1) FIRST_POINT_COLOR else ANCHOR_COLOR
                 pointLineRenderer.drawPoint(pos, viewMatrix, projMatrix, color)
             }
         }
 
-        // 연속된 포인트 간 라인 그리기 + 거리 계산
         if (positions.size >= 2) {
             var totalDist = 0.0
-            val segmentDists = mutableListOf<Double>()
+            segmentDists.clear()
 
             for (i in 0 until positions.size - 1) {
-                pointLineRenderer.drawLine(positions[i], positions[i + 1], viewMatrix, projMatrix, lineColor)
+                pointLineRenderer.drawLine(
+                    positions[i], positions[i + 1], viewMatrix, projMatrix,
+                    LINE_COLOR, lineWidth = 24f,
+                    screenWidth = viewportWidth, screenHeight = viewportHeight
+                )
 
                 val dx = (positions[i][0] - positions[i + 1][0]).toDouble()
                 val dy = (positions[i][1] - positions[i + 1][1]).toDouble()
@@ -388,27 +482,13 @@ class ArMeasureActivity : Activity(), GLSurfaceView.Renderer {
             }
 
             measuredDistanceMm = totalDist
-            runOnUiThread {
-                distanceText.text = "합계 ${String.format("%.0f", totalDist)} mm"
-
-                if (segmentDists.size > 1) {
-                    val segInfo = segmentDists.mapIndexed { idx, d ->
-                        "${idx + 1}구간: ${String.format("%.0f", d)}"
-                    }.joinToString("  |  ")
-                    segmentInfoText.text = segInfo
-                    segmentInfoText.visibility = View.VISIBLE
-                } else {
-                    segmentInfoText.visibility = View.GONE
-                    distanceText.text = "${String.format("%.0f", totalDist)} mm"
-                }
-            }
+            updateDistanceUi(totalDist, segmentDists)
         }
     }
 
     // --- 탭 처리 (GL 스레드에서 호출) ---
 
     private fun handleTap(frame: Frame) {
-        // 1) 일반 hitTest (Plane, Point)
         val hitResults = frame.hitTest(touchX, touchY)
         val bestHit = pickBestHit(hitResults)
 
@@ -417,7 +497,6 @@ class ArMeasureActivity : Activity(), GLSurfaceView.Renderer {
             return
         }
 
-        // 2) Instant Placement 폴백 — 평면 없어도 배치
         try {
             val instantHits = frame.hitTestInstantPlacement(touchX, touchY, APPROXIMATE_DISTANCE_M)
             if (instantHits.isNotEmpty()) {
@@ -428,18 +507,15 @@ class ArMeasureActivity : Activity(), GLSurfaceView.Renderer {
             Log.w(TAG, "Instant placement failed", e)
         }
 
-        // 3) 아무것도 없으면 안내
         val size = synchronized(anchorLock) { anchors.size }
         if (size < 2) {
-            runOnUiThread {
-                statusText.text = "터치한 곳에 표면이 없습니다. 다른 곳을 터치하세요."
-            }
+            runOnUiThread { statusText.text = strings.noSurface }
         }
     }
 
     /**
-     * hitTest 결과에서 가장 좋은 hit를 선택한다.
-     * 우선순위: Plane > Point (ORIENTED) > Point > InstantPlacement > null
+     * hitTest 결과에서 가장 좋은 hit를 선택.
+     * 우선순위: Plane > Point > InstantPlacement
      */
     private fun pickBestHit(hits: List<HitResult>): HitResult? {
         var bestPlane: HitResult? = null
@@ -468,7 +544,7 @@ class ArMeasureActivity : Activity(), GLSurfaceView.Renderer {
         return bestPlane ?: bestPoint ?: bestInstant
     }
 
-    /** GL 스레드에서 호출 — anchorLock 동기화 필요 */
+    /** GL 스레드에서 호출 — anchorLock 동기화 */
     private fun placeAnchor(anchor: Anchor) {
         val count: Int
         var totalDist = 0.0
@@ -491,24 +567,13 @@ class ArMeasureActivity : Activity(), GLSurfaceView.Renderer {
         }
 
         when {
-            count == 1 -> {
-                runOnUiThread {
-                    statusText.text = "두 번째 포인트를 터치하세요"
-                }
-            }
-            count >= 2 -> {
-                runOnUiThread {
-                    statusText.text = "포인트 $count · 터치하여 계속 추가"
-                    statusText.visibility = View.VISIBLE
-
-                    if (count == 2) {
-                        distanceText.text = "${String.format("%.0f", totalDist)} mm"
-                    } else {
-                        distanceText.text = "합계 ${String.format("%.0f", totalDist)} mm"
-                    }
-                    distanceText.visibility = View.VISIBLE
-                    buttonContainer.visibility = View.VISIBLE
-                }
+            count == 1 -> runOnUiThread { statusText.text = strings.tapSecondPoint }
+            count >= 2 -> runOnUiThread {
+                statusText.text = strings.multiPoint(count)
+                statusText.visibility = View.VISIBLE
+                distanceText.text = formatTotal(totalDist, count)
+                distanceText.visibility = View.VISIBLE
+                buttonContainer.visibility = View.VISIBLE
             }
         }
     }
@@ -539,7 +604,7 @@ class ArMeasureActivity : Activity(), GLSurfaceView.Renderer {
         when {
             remaining == 0 -> {
                 measuredDistanceMm = null
-                statusText.text = if (planeDetected) "측정할 시작점을 터치하세요" else "바닥이나 벽을 향해 천천히 스캔하세요"
+                statusText.text = if (planeDetected) strings.tapFirstPoint else strings.planeNotDetected
                 statusText.visibility = View.VISIBLE
                 distanceText.visibility = View.GONE
                 segmentInfoText.visibility = View.GONE
@@ -547,7 +612,7 @@ class ArMeasureActivity : Activity(), GLSurfaceView.Renderer {
             }
             remaining == 1 -> {
                 measuredDistanceMm = null
-                statusText.text = "두 번째 포인트를 터치하세요"
+                statusText.text = strings.tapSecondPoint
                 statusText.visibility = View.VISIBLE
                 distanceText.visibility = View.GONE
                 segmentInfoText.visibility = View.GONE
@@ -555,27 +620,21 @@ class ArMeasureActivity : Activity(), GLSurfaceView.Renderer {
             }
             else -> {
                 measuredDistanceMm = totalDist
-                statusText.text = "포인트 $remaining · 터치하여 계속 추가"
-                if (remaining == 2) {
-                    distanceText.text = "${String.format("%.0f", totalDist)} mm"
-                    segmentInfoText.visibility = View.GONE
-                } else {
-                    distanceText.text = "합계 ${String.format("%.0f", totalDist)} mm"
-                }
+                statusText.text = strings.multiPoint(remaining)
+                distanceText.text = formatTotal(totalDist, remaining)
+                if (remaining == 2) segmentInfoText.visibility = View.GONE
             }
         }
     }
 
     private fun resetMeasurement() {
         synchronized(anchorLock) {
-            for (anchor in anchors) {
-                anchor.detach()
-            }
+            for (anchor in anchors) anchor.detach()
             anchors.clear()
         }
         measuredDistanceMm = null
 
-        statusText.text = if (planeDetected) "측정할 시작점을 터치하세요" else "바닥이나 벽을 향해 천천히 스캔하세요"
+        statusText.text = if (planeDetected) strings.tapFirstPoint else strings.planeNotDetected
         statusText.visibility = View.VISIBLE
         distanceText.visibility = View.GONE
         segmentInfoText.visibility = View.GONE
@@ -599,13 +658,41 @@ class ArMeasureActivity : Activity(), GLSurfaceView.Renderer {
 
     // --- Helpers ---
 
+    private fun formatTotal(total: Double, pointCount: Int): String {
+        val v = String.format("%.0f", total)
+        return if (pointCount == 2) "$v mm" else "${strings.totalPrefix} $v mm"
+    }
+
     private fun updateStatus(msg: String) {
         val now = System.currentTimeMillis()
-        if (now - lastStatusUpdate < 300) return
+        if (now - lastStatusUpdate < UI_UPDATE_THROTTLE_MS) return
         lastStatusUpdate = now
         runOnUiThread {
             statusText.text = msg
             statusText.visibility = View.VISIBLE
+        }
+    }
+
+    /** 거리/세그먼트 UI 업데이트 — throttle 적용 (매 프레임 UI 스레드 부하 방지) */
+    private fun updateDistanceUi(totalDist: Double, segmentDists: List<Double>) {
+        val now = System.currentTimeMillis()
+        if (now - lastDistanceUpdate < UI_UPDATE_THROTTLE_MS) return
+        lastDistanceUpdate = now
+
+        val count = segmentDists.size + 1
+        val totalText = formatTotal(totalDist, count)
+
+        runOnUiThread {
+            distanceText.text = totalText
+            if (segmentDists.size > 1) {
+                val segInfo = segmentDists.mapIndexed { idx, d ->
+                    strings.segment(idx + 1, String.format("%.0f", d))
+                }.joinToString("  |  ")
+                segmentInfoText.text = segInfo
+                segmentInfoText.visibility = View.VISIBLE
+            } else {
+                segmentInfoText.visibility = View.GONE
+            }
         }
     }
 
@@ -633,13 +720,18 @@ class ArMeasureActivity : Activity(), GLSurfaceView.Renderer {
         ).toInt()
     }
 
-    private fun makeButton(text: String, bgColor: Int): TextView {
+    /** Coral 브랜드 컬러의 둥근 모서리 버튼. */
+    private fun makeButton(text: String, bgColor: Int, textColor: Int): TextView {
         return TextView(this).apply {
             this.text = text
-            setTextColor(Color.WHITE)
+            setTextColor(textColor)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
             gravity = Gravity.CENTER
-            setBackgroundColor(bgColor)
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = dp(12).toFloat()
+                setColor(bgColor)
+            }
             setPadding(dp(16), dp(12), dp(16), dp(12))
         }
     }

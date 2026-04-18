@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12+ 백업/전송 데이터 정책.
+  이 앱은 민감 데이터를 저장하지 않으므로 cloud/device 전송 모두 허용하되,
+  SharedPreferences 안의 사용자 테마 설정과 측정 기록은 포함한다.
+  민감 정보가 생기면 여기에 <exclude /> 규칙 추가.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <include domain="sharedpref" path="." />
+    </cloud-backup>
+    <device-transfer>
+        <include domain="sharedpref" path="." />
+    </device-transfer>
+</data-extraction-rules>

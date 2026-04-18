@@ -1,0 +1,19 @@
+# 릴리즈 서명 키 구성 예시.
+#
+# 스토어 업로드 전에 반드시 실제 키스토어를 생성하고
+# 이 파일을 복사해 `android/key.properties`로 저장하세요.
+# key.properties와 실제 .jks 파일은 절대 git에 커밋하지 마세요.
+#
+# 키스토어 생성 명령 (PowerShell/Bash 공통):
+#   keytool -genkey -v -keystore upload-keystore.jks \
+#     -keyalg RSA -keysize 2048 -validity 10000 \
+#     -alias upload
+#
+# 생성된 upload-keystore.jks를 android/app/ 로 이동.
+# 실제 파일은 외부 안전한 곳(1Password, Google Drive 비공개 폴더 등)에도 백업.
+# 분실하면 스토어 업데이트 불가 — 매우 중요!
+
+storePassword=YOUR_STORE_PASSWORD
+keyPassword=YOUR_KEY_PASSWORD
+keyAlias=upload
+storeFile=app/upload-keystore.jks

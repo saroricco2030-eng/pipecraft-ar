@@ -1,0 +1,237 @@
+{
+  "@@locale": "ko",
+
+  "appTitle": "PIPECRAFT AR",
+
+  "commonCancel": "취소",
+  "commonDelete": "삭제",
+  "commonReset": "초기화",
+  "commonChange": "변경",
+  "commonCopyTooltip": "복사",
+  "commonDeleteTooltip": "삭제",
+  "commonCopiedToClipboard": "클립보드에 복사되었습니다",
+  "commonOpenSettings": "설정으로 이동",
+
+  "navBending": "밴딩",
+  "navOffset": "오프셋",
+  "navAr": "AR 측정",
+
+  "themeLightMode": "라이트 모드",
+  "themeDarkMode": "다크 모드",
+  "themeSystemMode": "시스템 설정",
+
+  "permissionCameraTitle": "카메라 권한 필요",
+  "permissionCameraMessage": "AR 측정을 사용하려면 카메라 권한이 필요합니다.",
+  "permissionCameraMessageDenied": "AR 측정을 사용하려면 설정에서 카메라 권한을 허용해주세요.",
+
+  "settingsPillMachine": "기기",
+  "settingsPillDiameter": "관경",
+  "settingsSelectTitle": "기기 · 관경 선택",
+  "settingsSpringbackShort": "+{springback}°",
+  "@settingsSpringbackShort": {
+    "placeholders": { "springback": { "type": "int" } }
+  },
+
+  "bendingValidationInsertLength": "삽입길이를 입력하세요 (1mm 이상)",
+  "bendingValidationSelectDirection": "꺾는 방향을 선택하세요 (위/아래/좌/우)",
+  "bendingEmptyTitle": "꺾기를 추가하세요",
+  "bendingEmptyHint": "아래에서 삽입길이와 방향을 선택한 후\n꺾기 추가 버튼을 눌러주세요",
+  "bendingAddButton": "꺾기 추가",
+  "bendingConfirmResetTitle": "초기화",
+  "bendingResetConfirmMessage": "{count}개의 꺾기 데이터가 삭제됩니다. 초기화할까요?",
+  "@bendingResetConfirmMessage": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "bendingSummaryCardTitle": "전체 현황",
+  "bendingSummaryCopied": "전체 현황이 복사되었습니다",
+  "bendingCopyAllTooltip": "전체 복사",
+  "bendingProgressCounter": "{done}/{total} 완료",
+  "@bendingProgressCounter": {
+    "placeholders": {
+      "done": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "bendingTotalConsumed": "총 소비: {total}mm",
+  "@bendingTotalConsumed": {
+    "placeholders": { "total": { "type": "int" } }
+  },
+
+  "bendingHeroSetAngle": "세팅 각도",
+  "bendingHeroTarget": "목표",
+  "bendingHeroArc": "호 길이",
+  "bendingHeroConsumed": "소비",
+
+  "bendingSetAngle": "세팅각도",
+  "bendingArcLength": "호길이",
+  "bendingShorteningAmount": "단축량",
+
+  "bendingDirectionUp": "위쪽(↑)",
+  "bendingDirectionDown": "아래쪽(↓)",
+  "bendingDirectionLeft": "왼쪽(←)",
+  "bendingDirectionRight": "오른쪽(→)",
+  "bendingDirectionShortUp": "위",
+  "bendingDirectionShortDown": "아래",
+  "bendingDirectionShortLeft": "좌",
+  "bendingDirectionShortRight": "우",
+  "bendingDirectionSelectionLabel": "{direction} 방향 선택",
+  "@bendingDirectionSelectionLabel": {
+    "placeholders": { "direction": { "type": "String" } }
+  },
+
+  "bendingCardAngleDir": "{angle}° {direction} 방향",
+  "@bendingCardAngleDir": {
+    "placeholders": {
+      "angle": { "type": "int" },
+      "direction": { "type": "String" }
+    }
+  },
+  "bendingCardInsertOd": "삽입 {insertLen}mm · {od}mm",
+  "@bendingCardInsertOd": {
+    "placeholders": {
+      "insertLen": { "type": "int" },
+      "od": { "type": "int" }
+    }
+  },
+
+  "bendingStepDirectionCheck": "{direction} 방향 확인",
+  "@bendingStepDirectionCheck": {
+    "placeholders": { "direction": { "type": "String" } }
+  },
+  "bendingStepDirectionWarning": "방향이 틀리면 수정 불가!",
+  "bendingStepInsertMark": "삽입마크 {length}mm 위치에 표시",
+  "@bendingStepInsertMark": {
+    "placeholders": { "length": { "type": "int" } }
+  },
+  "bendingStepInsertHint": "파이프 끝에서 {length}mm",
+  "@bendingStepInsertHint": {
+    "placeholders": { "length": { "type": "int" } }
+  },
+  "bendingStepAngleTarget": "목표 {angle}° + 스프링백 {springback}°",
+  "@bendingStepAngleTarget": {
+    "placeholders": {
+      "angle": { "type": "int" },
+      "springback": { "type": "int" }
+    }
+  },
+  "bendingStepSetAngle": "세팅 {angle}°까지 꺾기",
+  "@bendingStepSetAngle": {
+    "placeholders": { "angle": { "type": "int" } }
+  },
+  "bendingStepAngleVerify": "각도계로 실제 꺾임 확인",
+  "bendingStepAngleTolerance": "{angle}° ± 2° 이내면 OK",
+  "@bendingStepAngleTolerance": {
+    "placeholders": { "angle": { "type": "int" } }
+  },
+
+  "bendingCopyInfo": "{index}번 꺾기: {od}mm {angle}° {direction} | 세팅 {setAngle}° | 호 {arcLength}mm | 삽입 {insertLength}mm",
+  "@bendingCopyInfo": {
+    "placeholders": {
+      "index": { "type": "int" },
+      "od": { "type": "int" },
+      "angle": { "type": "int" },
+      "direction": { "type": "String" },
+      "setAngle": { "type": "int" },
+      "arcLength": { "type": "int" },
+      "insertLength": { "type": "int" }
+    }
+  },
+  "bendingSummaryCopyLine": "{index}번: {od}mm {angle}° {direction} | 세팅 {setAngle}° | 삽입 {insertLength}mm",
+  "@bendingSummaryCopyLine": {
+    "placeholders": {
+      "index": { "type": "int" },
+      "od": { "type": "int" },
+      "angle": { "type": "int" },
+      "direction": { "type": "String" },
+      "setAngle": { "type": "int" },
+      "insertLength": { "type": "int" }
+    }
+  },
+
+  "offsetScreenTitle": "오프셋",
+  "offsetLabelObstacleHeight": "장애물 높이 (mm)",
+  "offsetLabelObstacleWidth": "장애물 폭 (mm)",
+  "offsetLabelPreClearance": "앞 여유 (mm)",
+  "offsetLabelPostClearance": "뒤 여유 (mm)",
+  "offsetValidationHeightPositive": "장애물 높이는 양수 값을 입력하세요",
+  "offsetValidationPositive": "양수 값을 입력하세요",
+  "offsetResultB1Insert": "B1 삽입",
+  "offsetResultB2Insert": "B2 삽입",
+  "offsetMiniStatSetAngle": "세팅",
+  "offsetMiniStatSlope": "경사",
+  "offsetMiniStatTotal": "총",
+  "offsetCopyResultButton": "결과 복사",
+  "offsetConfirmResetTitle": "초기화",
+  "offsetResetConfirmMessage": "입력값을 초기화할까요?",
+  "offsetDiagramTitle": "측면 다이어그램",
+  "offsetDiagramObstacleLabel": "장애물",
+  "offsetSelectFieldHint": "입력할 항목을 선택하세요",
+  "offsetCopyText": "오프셋: B1={b1}mm B2={b2}mm | 세팅 {setAngle}° | 총소요 {total}mm",
+  "@offsetCopyText": {
+    "placeholders": {
+      "b1": { "type": "int" },
+      "b2": { "type": "int" },
+      "setAngle": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "offsetArAutoAppliedFormat": "{value}mm → {field}",
+  "@offsetArAutoAppliedFormat": {
+    "placeholders": {
+      "value": { "type": "int" },
+      "field": { "type": "String" }
+    }
+  },
+
+  "offsetStepB1MarkShort": "B1 마킹",
+  "offsetStepB1BendShort": "B1 꺾기 (장애물 방향)",
+  "offsetStepB2MarkShort": "B2 마킹",
+  "offsetStepB2BendShort": "B2 꺾기 (반대 방향)",
+  "offsetStepParallelShort": "평행 확인",
+
+  "arScreenTitle": "AR 측정",
+  "arEmptyTitle": "측정 기록이 없습니다",
+  "arEmptyHint": "아래 버튼을 눌러 AR 측정을 시작하세요",
+  "arStartMeasureButton": "AR 측정 시작",
+  "arMeasuringLabel": "측정 중...",
+  "arMeasureInputLabel": "AR 측정으로 입력",
+  "arDeleteAllTooltip": "전체 삭제",
+  "arConfirmClearAllTitle": "전체 삭제",
+  "arClearAllConfirmMessage": "{count}개의 측정 기록이 삭제됩니다.",
+  "@arClearAllConfirmMessage": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "arMeasurementLabel": "측정값 {distance} 밀리미터",
+  "@arMeasurementLabel": {
+    "placeholders": { "distance": { "type": "int" } }
+  },
+  "arMeasurementError": "AR 측정 중 오류가 발생했습니다",
+  "arGeneralError": "AR 오류가 발생했습니다. 다시 시도해주세요",
+
+  "arNativeScanHint": "카메라를 천천히 움직여 주변을 스캔하세요",
+  "arNativeTrackingLost": "추적 중... 카메라를 천천히 움직여주세요",
+  "arNativePlaneNotDetected": "바닥이나 벽을 향해 천천히 스캔하세요",
+  "arNativeTapFirstPoint": "측정할 시작점을 터치하세요",
+  "arNativeTapSecondPoint": "두 번째 포인트를 터치하세요",
+  "arNativeMultiPoint": "포인트 {count} · 터치하여 계속 추가",
+  "@arNativeMultiPoint": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "arNativeNoSurface": "터치한 곳에 표면이 없습니다. 다른 곳을 터치하세요.",
+  "arNativeBtnUndo": "되돌리기",
+  "arNativeBtnReset": "초기화",
+  "arNativeBtnConfirm": "확인",
+  "arNativeTotalPrefix": "합계",
+  "arNativeSegmentFormat": "{index}구간: {distance}",
+  "@arNativeSegmentFormat": {
+    "placeholders": {
+      "index": { "type": "int" },
+      "distance": { "type": "String" }
+    }
+  },
+  "arNativeErrorDeviceUnsupported": "이 기기는 ARCore를 지원하지 않습니다",
+  "arNativeErrorApkTooOld": "ARCore 업데이트가 필요합니다",
+  "arNativeErrorSdkTooOld": "앱 업데이트가 필요합니다",
+  "arNativeErrorSessionInit": "AR 세션 초기화에 실패했습니다",
+  "arNativeErrorCameraUnavailable": "카메라를 사용할 수 없습니다"
+}
