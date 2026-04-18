@@ -74,7 +74,12 @@ class OffsetPainter extends CustomPainter {
     final endX = w - padX;
 
     _drawHorizontalDim(
-        canvas, startX, endX, padTop - 16, '${total.round()} mm');
+      canvas,
+      startX,
+      endX,
+      padTop - 16,
+      '${total.round()} mm',
+    );
 
     _drawObstacle(
       canvas,
@@ -92,7 +97,15 @@ class OffsetPainter extends CustomPainter {
     }
 
     _drawRoute(
-      canvas, startX, b1X, riseEndX, descentStartX, b2X, endX, topY, baseY,
+      canvas,
+      startX,
+      b1X,
+      riseEndX,
+      descentStartX,
+      b2X,
+      endX,
+      topY,
+      baseY,
     );
 
     _drawBendPoint(canvas, Offset(b1X, baseY), 'B1');
@@ -200,14 +213,29 @@ class OffsetPainter extends CustomPainter {
       ..strokeWidth = 1;
     canvas.drawCircle(pos, 8, ring);
 
-    drawDiagramText(canvas, label, Offset(pos.dx, pos.dy + 16),
-        colors.diagramAccent, 10,
-        mono: true, bold: true, centered: true);
+    drawDiagramText(
+      canvas,
+      label,
+      Offset(pos.dx, pos.dy + 16),
+      colors.diagramAccent,
+      10,
+      mono: true,
+      bold: true,
+      centered: true,
+    );
   }
 
   void _drawAngleLabel(Canvas canvas, Offset pos, String text) {
-    drawDiagramText(canvas, text, pos, colors.diagramPrimary, 10,
-        mono: true, bold: true, centered: true);
+    drawDiagramText(
+      canvas,
+      text,
+      pos,
+      colors.diagramPrimary,
+      10,
+      mono: true,
+      bold: true,
+      centered: true,
+    );
   }
 
   void _drawEndpoint(Canvas canvas, Offset pos, String label) {
@@ -217,14 +245,26 @@ class OffsetPainter extends CustomPainter {
       ..strokeWidth = 1.5;
     canvas.drawCircle(pos, 4, ring);
 
-    drawDiagramText(canvas, label, Offset(pos.dx, pos.dy + 16),
-        colors.diagramSecondary, 10,
-        mono: true, bold: true, centered: true);
+    drawDiagramText(
+      canvas,
+      label,
+      Offset(pos.dx, pos.dy + 16),
+      colors.diagramSecondary,
+      10,
+      mono: true,
+      bold: true,
+      centered: true,
+    );
   }
 
   // ─── 수평/수직 치수선 ───────────────────────────────
   void _drawHorizontalDim(
-      Canvas canvas, double x1, double x2, double y, String label) {
+    Canvas canvas,
+    double x1,
+    double x2,
+    double y,
+    String label,
+  ) {
     final paint = Paint()
       ..color = colors.diagramDim
       ..strokeWidth = 1;
@@ -235,21 +275,38 @@ class OffsetPainter extends CustomPainter {
     drawDiagramArrowhead(canvas, Offset(x1, y), const Offset(-1, 0), paint);
     drawDiagramArrowhead(canvas, Offset(x2, y), const Offset(1, 0), paint);
 
-    drawDiagramText(canvas, label, Offset((x1 + x2) / 2, y - 8),
-        colors.diagramDimText, 10,
-        mono: true, bold: true, centered: true);
+    drawDiagramText(
+      canvas,
+      label,
+      Offset((x1 + x2) / 2, y - 8),
+      colors.diagramDimText,
+      10,
+      mono: true,
+      bold: true,
+      centered: true,
+    );
   }
 
   void _drawVerticalDim(
-      Canvas canvas, Offset bottom, Offset top, String label) {
+    Canvas canvas,
+    Offset bottom,
+    Offset top,
+    String label,
+  ) {
     final paint = Paint()
       ..color = colors.diagramDim
       ..strokeWidth = 1;
 
-    canvas.drawLine(Offset(bottom.dx - 3, bottom.dy),
-        Offset(bottom.dx + 3, bottom.dy), paint);
-    canvas.drawLine(Offset(top.dx - 3, top.dy),
-        Offset(top.dx + 3, top.dy), paint);
+    canvas.drawLine(
+      Offset(bottom.dx - 3, bottom.dy),
+      Offset(bottom.dx + 3, bottom.dy),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(top.dx - 3, top.dy),
+      Offset(top.dx + 3, top.dy),
+      paint,
+    );
     canvas.drawLine(bottom, top, paint);
     drawDiagramArrowhead(canvas, bottom, const Offset(0, 1), paint);
     drawDiagramArrowhead(canvas, top, const Offset(0, -1), paint);

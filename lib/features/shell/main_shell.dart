@@ -83,11 +83,11 @@ class _MainShellState extends State<MainShell> {
   }
 
   String _appBarTitle(BuildContext context) => switch (_index) {
-        0 => context.l10n.appTitle,
-        1 => context.l10n.offsetScreenTitle,
-        2 => context.l10n.arScreenTitle,
-        _ => context.l10n.appTitle,
-      };
+    0 => context.l10n.appTitle,
+    1 => context.l10n.offsetScreenTitle,
+    2 => context.l10n.arScreenTitle,
+    _ => context.l10n.appTitle,
+  };
 
   // ─── Build ────────────────────────────────────────────
 
@@ -112,23 +112,18 @@ class _MainShellState extends State<MainShell> {
       body: Column(
         children: [
           // Settings Strip은 밴딩/오프셋 탭에서만 (AR에는 불필요)
-          if (_index < 2) _SettingsStrip(
-            machine: _machine,
-            selectedOd: _selectedOd,
-            onTap: _showSettingsSheet,
-          ),
+          if (_index < 2)
+            _SettingsStrip(
+              machine: _machine,
+              selectedOd: _selectedOd,
+              onTap: _showSettingsSheet,
+            ),
           Expanded(
             child: IndexedStack(
               index: _index,
               children: [
-                BendingScreen(
-                  machine: _machine,
-                  selectedOd: _selectedOd,
-                ),
-                OffsetScreen(
-                  machine: _machine,
-                  selectedOd: _selectedOd,
-                ),
+                BendingScreen(machine: _machine, selectedOd: _selectedOd),
+                OffsetScreen(machine: _machine, selectedOd: _selectedOd),
                 const ArScreen(),
               ],
             ),
@@ -413,15 +408,15 @@ class _SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(
-        text,
-        style: TextStyle(
-          fontFamily: 'DM Sans',
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 1.0,
-          color: color,
-        ),
-      );
+    text,
+    style: TextStyle(
+      fontFamily: 'DM Sans',
+      fontSize: 11,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 1.0,
+      color: color,
+    ),
+  );
 }
 
 class _MachineSelector extends StatelessWidget {
@@ -438,8 +433,7 @@ class _MachineSelector extends StatelessWidget {
         final isSelected = m == selected;
         return Expanded(
           child: Padding(
-            padding:
-                EdgeInsets.only(right: m == Machine.values.last ? 0 : 8),
+            padding: EdgeInsets.only(right: m == Machine.values.last ? 0 : 8),
             child: Semantics(
               label: m.label,
               selected: isSelected,

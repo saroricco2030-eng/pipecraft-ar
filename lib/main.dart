@@ -17,20 +17,15 @@ const _kSentryDsn = String.fromEnvironment('SENTRY_DSN');
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-  ]);
+  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
-  await SentryFlutter.init(
-    (options) {
-      options.dsn = _kSentryDsn;
-      options.debug = kDebugMode;
-      options.tracesSampleRate = kReleaseMode ? 0.1 : 0.0;
-      // PII 전송 금지 — CLAUDE.md 10번 (개인정보 보호)
-      options.sendDefaultPii = false;
-    },
-    appRunner: () => runApp(const MyApp()),
-  );
+  await SentryFlutter.init((options) {
+    options.dsn = _kSentryDsn;
+    options.debug = kDebugMode;
+    options.tracesSampleRate = kReleaseMode ? 0.1 : 0.0;
+    // PII 전송 금지 — CLAUDE.md 10번 (개인정보 보호)
+    options.sendDefaultPii = false;
+  }, appRunner: () => runApp(const MyApp()));
 }
 
 class MyApp extends StatefulWidget {

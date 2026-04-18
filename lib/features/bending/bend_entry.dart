@@ -11,11 +11,11 @@ enum BendDirection { up, down, left, right }
 extension BendDirectionX on BendDirection {
   /// Lucide 스타일 방향 아이콘 (이모지·화살표 문자 대신 공식 아이콘).
   IconData get icon => switch (this) {
-        BendDirection.up => Icons.arrow_upward_rounded,
-        BendDirection.down => Icons.arrow_downward_rounded,
-        BendDirection.left => Icons.arrow_back_rounded,
-        BendDirection.right => Icons.arrow_forward_rounded,
-      };
+    BendDirection.up => Icons.arrow_upward_rounded,
+    BendDirection.down => Icons.arrow_downward_rounded,
+    BendDirection.left => Icons.arrow_back_rounded,
+    BendDirection.right => Icons.arrow_forward_rounded,
+  };
 }
 
 // ─── BendEntry ──────────────────────────────────────────
@@ -45,13 +45,13 @@ class BendEntry {
   }) : stepsDone = stepsDone ?? [false, false, false, false];
 
   Map<String, dynamic> toJson() => {
-        'pipeOd': pipeOd,
-        'machine': machine.index,
-        'insertLen': insertLen,
-        'angle': angle,
-        'direction': direction.name,
-        'stepsDone': stepsDone,
-      };
+    'pipeOd': pipeOd,
+    'machine': machine.index,
+    'insertLen': insertLen,
+    'angle': angle,
+    'direction': direction.name,
+    'stepsDone': stepsDone,
+  };
 
   /// 단일 엔트리 복원. 손상된 데이터에 대해선 [FormatException]을 던진다.
   /// 호출 측에서 try-catch로 감싸 **엔트리 단위 실패**를 처리할 것.

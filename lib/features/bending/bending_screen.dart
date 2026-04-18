@@ -150,18 +150,18 @@ class _BendingScreenState extends State<BendingScreen> {
   // ─── Direction label helpers (i18n) ─────────────────────
 
   String _dirLabel(BendDirection dir) => switch (dir) {
-        BendDirection.up => context.l10n.bendingDirectionUp,
-        BendDirection.down => context.l10n.bendingDirectionDown,
-        BendDirection.left => context.l10n.bendingDirectionLeft,
-        BendDirection.right => context.l10n.bendingDirectionRight,
-      };
+    BendDirection.up => context.l10n.bendingDirectionUp,
+    BendDirection.down => context.l10n.bendingDirectionDown,
+    BendDirection.left => context.l10n.bendingDirectionLeft,
+    BendDirection.right => context.l10n.bendingDirectionRight,
+  };
 
   String _dirShortLabel(BendDirection dir) => switch (dir) {
-        BendDirection.up => context.l10n.bendingDirectionShortUp,
-        BendDirection.down => context.l10n.bendingDirectionShortDown,
-        BendDirection.left => context.l10n.bendingDirectionShortLeft,
-        BendDirection.right => context.l10n.bendingDirectionShortRight,
-      };
+    BendDirection.up => context.l10n.bendingDirectionShortUp,
+    BendDirection.down => context.l10n.bendingDirectionShortDown,
+    BendDirection.left => context.l10n.bendingDirectionShortLeft,
+    BendDirection.right => context.l10n.bendingDirectionShortRight,
+  };
 
   // ─── Actions ────────────────────────────────────────────
 
@@ -187,14 +187,16 @@ class _BendingScreenState extends State<BendingScreen> {
     );
     HapticFeedback.mediumImpact();
     setState(() {
-      _bends.add(BendEntry(
-        pipeOd: widget.selectedOd,
-        machine: widget.machine,
-        insertLen: insert,
-        angle: _selectedAngle,
-        direction: _selectedDirection!,
-        result: result,
-      ));
+      _bends.add(
+        BendEntry(
+          pipeOd: widget.selectedOd,
+          machine: widget.machine,
+          insertLen: insert,
+          angle: _selectedAngle,
+          direction: _selectedDirection!,
+          result: result,
+        ),
+      );
       _selectedDirection = null;
       _insertController.clear();
     });
@@ -242,8 +244,10 @@ class _BendingScreenState extends State<BendingScreen> {
               });
               _saveData();
             },
-            child: Text(context.l10n.commonReset,
-                style: TextStyle(color: c.primary)),
+            child: Text(
+              context.l10n.commonReset,
+              style: TextStyle(color: c.primary),
+            ),
           ),
         ],
       ),
@@ -253,13 +257,14 @@ class _BendingScreenState extends State<BendingScreen> {
   void _copyBendInfo(int i, BendEntry entry) {
     HapticFeedback.lightImpact();
     final text = context.l10n.bendingCopyInfo(
-        i + 1,
-        entry.pipeOd,
-        entry.angle.round(),
-        _dirLabel(entry.direction),
-        entry.result.setAngle.round(),
-        entry.result.arcLength.round(),
-        entry.insertLen.round());
+      i + 1,
+      entry.pipeOd,
+      entry.angle.round(),
+      _dirLabel(entry.direction),
+      entry.result.setAngle.round(),
+      entry.result.arcLength.round(),
+      entry.insertLen.round(),
+    );
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -274,12 +279,21 @@ class _BendingScreenState extends State<BendingScreen> {
     final lines = <String>[];
     for (var i = 0; i < _bends.length; i++) {
       final b = _bends[i];
-      lines.add(context.l10n.bendingSummaryCopyLine(i + 1, b.pipeOd,
-          b.angle.round(), _dirLabel(b.direction), b.result.setAngle.round(),
-          b.insertLen.round()));
+      lines.add(
+        context.l10n.bendingSummaryCopyLine(
+          i + 1,
+          b.pipeOd,
+          b.angle.round(),
+          _dirLabel(b.direction),
+          b.result.setAngle.round(),
+          b.insertLen.round(),
+        ),
+      );
     }
-    final totalConsumed =
-        _bends.fold<double>(0, (sum, b) => sum + b.result.consumedLength);
+    final totalConsumed = _bends.fold<double>(
+      0,
+      (sum, b) => sum + b.result.consumedLength,
+    );
     lines.add(context.l10n.bendingTotalConsumed(totalConsumed.round()));
     Clipboard.setData(ClipboardData(text: lines.join('\n')));
     ScaffoldMessenger.of(context).showSnackBar(
@@ -299,9 +313,7 @@ class _BendingScreenState extends State<BendingScreen> {
     if (_isLoading) {
       return Scaffold(
         backgroundColor: c.background,
-        body: Center(
-          child: CircularProgressIndicator(color: c.primary),
-        ),
+        body: Center(child: CircularProgressIndicator(color: c.primary)),
       );
     }
 
@@ -354,8 +366,7 @@ class _BendingScreenState extends State<BendingScreen> {
             selectedAngle: _selectedAngle,
             onAngleChanged: (a) => setState(() => _selectedAngle = a),
             selectedDirection: _selectedDirection,
-            onDirectionChanged: (d) =>
-                setState(() => _selectedDirection = d),
+            onDirectionChanged: (d) => setState(() => _selectedDirection = d),
             onAdd: _addBend,
             onArMeasure: _measureForInsert,
             measuring: _measuring,
@@ -363,8 +374,7 @@ class _BendingScreenState extends State<BendingScreen> {
             addLabel: context.l10n.bendingAddButton,
             mmUnit: 'mm',
             arMeasuringLabel: context.l10n.arMeasuringLabel,
-            directionLabelFor:
-                context.l10n.bendingDirectionSelectionLabel(''),
+            directionLabelFor: context.l10n.bendingDirectionSelectionLabel(''),
           ),
         ],
       ),
@@ -428,7 +438,11 @@ class _BendingScreenState extends State<BendingScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _heroSubItem(l.bendingHeroTarget, '${_selectedAngle.toInt()}°', c),
+              _heroSubItem(
+                l.bendingHeroTarget,
+                '${_selectedAngle.toInt()}°',
+                c,
+              ),
               const SizedBox(width: 24),
               _heroSubItem(l.bendingHeroArc, '${_previewArcLength}mm', c),
               const SizedBox(width: 24),
@@ -483,7 +497,6 @@ class _BendingScreenState extends State<BendingScreen> {
     }
   }
 
-
   // ─── Compact Bend Card (접기/펼치기) ──────────────────
 
   Widget _buildCompactBendCard(int i, BendEntry entry, AppColors c) {
@@ -506,8 +519,7 @@ class _BendingScreenState extends State<BendingScreen> {
               }
             }),
             child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
                   Container(
@@ -535,7 +547,9 @@ class _BendingScreenState extends State<BendingScreen> {
                       children: [
                         Text(
                           context.l10n.bendingCardAngleDir(
-                              entry.angle.round(), _dirShortLabel(entry.direction)),
+                            entry.angle.round(),
+                            _dirShortLabel(entry.direction),
+                          ),
                           style: TextStyle(
                             fontFamily: 'DM Sans',
                             fontSize: 13,
@@ -545,7 +559,9 @@ class _BendingScreenState extends State<BendingScreen> {
                         ),
                         Text(
                           context.l10n.bendingCardInsertOd(
-                              entry.insertLen.round(), entry.pipeOd),
+                            entry.insertLen.round(),
+                            entry.pipeOd,
+                          ),
                           style: TextStyle(
                             fontFamily: 'DM Sans',
                             fontSize: 11,
@@ -583,35 +599,63 @@ class _BendingScreenState extends State<BendingScreen> {
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  _resultCol(context.l10n.bendingSetAngle,
-                      '${entry.result.setAngle.round()}°', c, isAccent: true),
+                  _resultCol(
+                    context.l10n.bendingSetAngle,
+                    '${entry.result.setAngle.round()}°',
+                    c,
+                    isAccent: true,
+                  ),
                   Container(width: 1, height: 36, color: c.border),
-                  _resultCol(context.l10n.bendingArcLength,
-                      '${entry.result.arcLength.round()} mm', c),
+                  _resultCol(
+                    context.l10n.bendingArcLength,
+                    '${entry.result.arcLength.round()} mm',
+                    c,
+                  ),
                   Container(width: 1, height: 36, color: c.border),
-                  _resultCol(context.l10n.bendingShorteningAmount,
-                      '${entry.result.shortenLength.round()} mm', c),
+                  _resultCol(
+                    context.l10n.bendingShorteningAmount,
+                    '${entry.result.shortenLength.round()} mm',
+                    c,
+                  ),
                 ],
               ),
             ),
             Divider(height: 1, color: c.border),
             // Steps
-            _buildStepRow(entry, 0, 'A',
-                context.l10n.bendingStepInsertMark(entry.insertLen.round()),
-                context.l10n.bendingStepInsertHint(entry.insertLen.round()), c),
             _buildStepRow(
-                entry, 1, 'B',
-                context.l10n.bendingStepDirectionCheck(
-                    _dirLabel(entry.direction)),
-                context.l10n.bendingStepDirectionWarning, c),
+              entry,
+              0,
+              'A',
+              context.l10n.bendingStepInsertMark(entry.insertLen.round()),
+              context.l10n.bendingStepInsertHint(entry.insertLen.round()),
+              c,
+            ),
             _buildStepRow(
-                entry, 2, 'C',
-                context.l10n.bendingStepSetAngle(entry.result.setAngle.round()),
-                context.l10n.bendingStepAngleTarget(entry.angle.round(), sb), c),
+              entry,
+              1,
+              'B',
+              context.l10n.bendingStepDirectionCheck(
+                _dirLabel(entry.direction),
+              ),
+              context.l10n.bendingStepDirectionWarning,
+              c,
+            ),
             _buildStepRow(
-                entry, 3, 'D',
-                context.l10n.bendingStepAngleVerify,
-                context.l10n.bendingStepAngleTolerance(entry.angle.round()), c),
+              entry,
+              2,
+              'C',
+              context.l10n.bendingStepSetAngle(entry.result.setAngle.round()),
+              context.l10n.bendingStepAngleTarget(entry.angle.round(), sb),
+              c,
+            ),
+            _buildStepRow(
+              entry,
+              3,
+              'D',
+              context.l10n.bendingStepAngleVerify,
+              context.l10n.bendingStepAngleTolerance(entry.angle.round()),
+              c,
+            ),
             // Actions row
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 4, 8, 8),
@@ -639,14 +683,23 @@ class _BendingScreenState extends State<BendingScreen> {
     );
   }
 
-  Widget _resultCol(String label, String value, AppColors c,
-      {bool isAccent = false}) {
+  Widget _resultCol(
+    String label,
+    String value,
+    AppColors c, {
+    bool isAccent = false,
+  }) {
     return Expanded(
       child: Column(
         children: [
-          Text(label,
-              style: TextStyle(
-                  fontFamily: 'DM Sans', fontSize: 11, color: c.text3)),
+          Text(
+            label,
+            style: TextStyle(
+              fontFamily: 'DM Sans',
+              fontSize: 11,
+              color: c.text3,
+            ),
+          ),
           const SizedBox(height: 2),
           Text(
             value,
@@ -675,69 +728,69 @@ class _BendingScreenState extends State<BendingScreen> {
       label: '$title - step $letter',
       checked: checked,
       child: InkWell(
-      onTap: () {
-        setState(() => entry.stepsDone[stepIndex] = !checked);
-        HapticFeedback.selectionClick();
-        _saveData();
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              width: 26,
-              height: 26,
-              decoration: BoxDecoration(
-                color: checked ? c.accent : c.stepUnchecked,
-                shape: BoxShape.circle,
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                letter,
-                style: TextStyle(
-                  fontFamily: 'DM Mono',
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: checked ? c.onPrimary : c.text2,
+        onTap: () {
+          setState(() => entry.stepsDone[stepIndex] = !checked);
+          HapticFeedback.selectionClick();
+          _saveData();
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 26,
+                height: 26,
+                decoration: BoxDecoration(
+                  color: checked ? c.accent : c.stepUnchecked,
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  letter,
+                  style: TextStyle(
+                    fontFamily: 'DM Mono',
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: checked ? c.onPrimary : c.text2,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontFamily: 'DM Sans',
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: c.text,
-                      decoration: checked ? TextDecoration.lineThrough : null,
-                      decorationColor: c.text3,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontFamily: 'DM Sans',
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: c.text,
+                        decoration: checked ? TextDecoration.lineThrough : null,
+                        decorationColor: c.text3,
+                      ),
                     ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontFamily: 'DM Sans',
-                      fontSize: 11,
-                      color: c.text3,
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontFamily: 'DM Sans',
+                        fontSize: 11,
+                        color: c.text3,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            Icon(
-              checked ? Icons.check_circle : Icons.circle_outlined,
-              color: checked ? c.accent : c.text3,
-              size: 22,
-            ),
-          ],
+              Icon(
+                checked ? Icons.check_circle : Icons.circle_outlined,
+                color: checked ? c.accent : c.text3,
+                size: 22,
+              ),
+            ],
+          ),
         ),
       ),
-    ),
     );
   }
 
@@ -747,8 +800,11 @@ class _BendingScreenState extends State<BendingScreen> {
     return Center(
       child: Column(
         children: [
-          Icon(Icons.straighten, size: 64,
-              color: c.text3.withValues(alpha: 0.4)),
+          Icon(
+            Icons.straighten,
+            size: 64,
+            color: c.text3.withValues(alpha: 0.4),
+          ),
           const SizedBox(height: 16),
           Text(
             context.l10n.bendingEmptyTitle,
@@ -799,8 +855,10 @@ class _BendingScreenState extends State<BendingScreen> {
   Widget _buildSummaryCard(AppColors c) {
     final total = _bends.length;
     final doneCount = _bends.where((b) => b.done).length;
-    final totalConsumed =
-        _bends.fold<double>(0, (sum, b) => sum + b.result.consumedLength);
+    final totalConsumed = _bends.fold<double>(
+      0,
+      (sum, b) => sum + b.result.consumedLength,
+    );
 
     return Container(
       decoration: cardDeco(c),
@@ -846,8 +904,11 @@ class _BendingScreenState extends State<BendingScreen> {
                 width: 48,
                 height: 48,
                 child: IconButton(
-                  icon: Icon(Icons.delete_sweep_rounded,
-                      size: 20, color: c.danger),
+                  icon: Icon(
+                    Icons.delete_sweep_rounded,
+                    size: 20,
+                    color: c.danger,
+                  ),
                   tooltip: context.l10n.bendingConfirmResetTitle,
                   onPressed: _confirmResetAll,
                   padding: EdgeInsets.zero,
@@ -878,7 +939,4 @@ class _BendingScreenState extends State<BendingScreen> {
       ),
     );
   }
-
-
 }
-

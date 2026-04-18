@@ -31,10 +31,7 @@ class _SplashScreenState extends State<SplashScreen>
     // 전체화면 몰입 모드
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
-    _fadeCtrl = AnimationController(
-      vsync: this,
-      duration: _fadeOutDuration,
-    );
+    _fadeCtrl = AnimationController(vsync: this, duration: _fadeOutDuration);
 
     Future.delayed(_splashDuration, () {
       if (!mounted) return;
@@ -63,10 +60,7 @@ class _SplashScreenState extends State<SplashScreen>
     return AnimatedBuilder(
       animation: _fadeCtrl,
       builder: (context, child) {
-        return Opacity(
-          opacity: 1.0 - _fadeCtrl.value,
-          child: child,
-        );
+        return Opacity(opacity: 1.0 - _fadeCtrl.value, child: child);
       },
       child: Scaffold(
         backgroundColor: AppColors.dark.splashBg,

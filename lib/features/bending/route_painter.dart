@@ -89,7 +89,11 @@ class RoutePainter extends CustomPainter {
   }
 
   void _drawInsertMarks(
-      Canvas canvas, List<double> markX, double lineY, double segLen) {
+    Canvas canvas,
+    List<double> markX,
+    double lineY,
+    double segLen,
+  ) {
     final paint = Paint()
       ..color = colors.diagramAccent
       ..strokeWidth = 1.5;
@@ -105,7 +109,11 @@ class RoutePainter extends CustomPainter {
   }
 
   void _drawBendPoints(
-      Canvas canvas, List<double> markX, double lineY, double labelBaseY) {
+    Canvas canvas,
+    List<double> markX,
+    double lineY,
+    double labelBaseY,
+  ) {
     for (int i = 0; i < bends.length; i++) {
       final b = bends[i];
       final x = markX[i + 1];
@@ -142,7 +150,11 @@ class RoutePainter extends CustomPainter {
   }
 
   void _drawDirectionIndicator(
-      Canvas canvas, BendDirection dir, Offset center, Color color) {
+    Canvas canvas,
+    BendDirection dir,
+    Offset center,
+    Color color,
+  ) {
     final paint = Paint()
       ..color = color
       ..strokeWidth = 1.2
@@ -179,11 +191,25 @@ class RoutePainter extends CustomPainter {
     canvas.drawCircle(Offset(markX.first, lineY), 4, ring);
     canvas.drawCircle(Offset(markX.last, lineY), 4, ring);
 
-    drawDiagramText(canvas, 'S', Offset(markX.first, lineY + 18),
-        colors.diagramSecondary, 10,
-        mono: true, bold: true, centered: true);
-    drawDiagramText(canvas, 'E', Offset(markX.last, lineY + 18),
-        colors.diagramSecondary, 10,
-        mono: true, bold: true, centered: true);
+    drawDiagramText(
+      canvas,
+      'S',
+      Offset(markX.first, lineY + 18),
+      colors.diagramSecondary,
+      10,
+      mono: true,
+      bold: true,
+      centered: true,
+    );
+    drawDiagramText(
+      canvas,
+      'E',
+      Offset(markX.last, lineY + 18),
+      colors.diagramSecondary,
+      10,
+      mono: true,
+      bold: true,
+      centered: true,
+    );
   }
 }

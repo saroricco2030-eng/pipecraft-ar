@@ -9,8 +9,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pipe_craft_ar/core/theme/app_theme.dart';
 
 void main() {
-  testWidgets('AppTheme builds light/dark themes without errors',
-      (WidgetTester tester) async {
+  testWidgets('AppTheme builds light/dark themes without errors', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light(),

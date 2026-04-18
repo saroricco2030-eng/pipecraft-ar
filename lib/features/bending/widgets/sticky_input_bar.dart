@@ -69,11 +69,7 @@ class StickyInputBar extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildRow1(c),
-              const SizedBox(height: 8),
-              _buildRow2(c),
-            ],
+            children: [_buildRow1(c), const SizedBox(height: 8), _buildRow2(c)],
           ),
         ),
       ),
@@ -101,8 +97,9 @@ class StickyInputBar extends StatelessWidget {
                 Expanded(
                   child: TextField(
                     controller: insertController,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
                       const SingleDecimalFormatter(),
@@ -249,8 +246,7 @@ class _AngleChipGroup extends StatelessWidget {
                       fontFamily: 'DM Mono',
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
-                      color:
-                          a == selected ? c.chipSelectedText : c.text2,
+                      color: a == selected ? c.chipSelectedText : c.text2,
                     ),
                   ),
                 ),
@@ -383,10 +379,7 @@ class _SquareIconButton extends StatelessWidget {
             ? SizedBox(
                 width: 20,
                 height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: fg,
-                ),
+                child: CircularProgressIndicator(strokeWidth: 2, color: fg),
               )
             : Icon(icon, size: 22, color: fg),
       ),

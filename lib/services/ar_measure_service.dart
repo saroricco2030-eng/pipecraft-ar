@@ -48,49 +48,49 @@ class ArMeasureStrings {
   });
 
   factory ArMeasureStrings.fromL10n(AppLocalizations l) => ArMeasureStrings(
-        scanHint: l.arNativeScanHint,
-        trackingLost: l.arNativeTrackingLost,
-        planeNotDetected: l.arNativePlaneNotDetected,
-        tapFirstPoint: l.arNativeTapFirstPoint,
-        tapSecondPoint: l.arNativeTapSecondPoint,
-        multiPointTemplate: l.arNativeMultiPoint(0), // {count} placeholder
-        noSurface: l.arNativeNoSurface,
-        btnUndo: l.arNativeBtnUndo,
-        btnReset: l.arNativeBtnReset,
-        btnConfirm: l.arNativeBtnConfirm,
-        totalPrefix: l.arNativeTotalPrefix,
-        segmentTemplate: l.arNativeSegmentFormat(0, ''),
-        errorDeviceUnsupported: l.arNativeErrorDeviceUnsupported,
-        errorApkTooOld: l.arNativeErrorApkTooOld,
-        errorSdkTooOld: l.arNativeErrorSdkTooOld,
-        errorSessionInit: l.arNativeErrorSessionInit,
-        errorCameraUnavailable: l.arNativeErrorCameraUnavailable,
-      );
+    scanHint: l.arNativeScanHint,
+    trackingLost: l.arNativeTrackingLost,
+    planeNotDetected: l.arNativePlaneNotDetected,
+    tapFirstPoint: l.arNativeTapFirstPoint,
+    tapSecondPoint: l.arNativeTapSecondPoint,
+    multiPointTemplate: l.arNativeMultiPoint(0), // {count} placeholder
+    noSurface: l.arNativeNoSurface,
+    btnUndo: l.arNativeBtnUndo,
+    btnReset: l.arNativeBtnReset,
+    btnConfirm: l.arNativeBtnConfirm,
+    totalPrefix: l.arNativeTotalPrefix,
+    segmentTemplate: l.arNativeSegmentFormat(0, ''),
+    errorDeviceUnsupported: l.arNativeErrorDeviceUnsupported,
+    errorApkTooOld: l.arNativeErrorApkTooOld,
+    errorSdkTooOld: l.arNativeErrorSdkTooOld,
+    errorSessionInit: l.arNativeErrorSessionInit,
+    errorCameraUnavailable: l.arNativeErrorCameraUnavailable,
+  );
 
   Map<String, String> toMap() => {
-        'scanHint': scanHint,
-        'trackingLost': trackingLost,
-        'planeNotDetected': planeNotDetected,
-        'tapFirstPoint': tapFirstPoint,
-        'tapSecondPoint': tapSecondPoint,
-        'multiPointTemplate': multiPointTemplate,
-        'noSurface': noSurface,
-        'btnUndo': btnUndo,
-        'btnReset': btnReset,
-        'btnConfirm': btnConfirm,
-        'totalPrefix': totalPrefix,
-        'segmentTemplate': segmentTemplate,
-        'errorDeviceUnsupported': errorDeviceUnsupported,
-        'errorApkTooOld': errorApkTooOld,
-        'errorSdkTooOld': errorSdkTooOld,
-        'errorSessionInit': errorSessionInit,
-        'errorCameraUnavailable': errorCameraUnavailable,
-      };
+    'scanHint': scanHint,
+    'trackingLost': trackingLost,
+    'planeNotDetected': planeNotDetected,
+    'tapFirstPoint': tapFirstPoint,
+    'tapSecondPoint': tapSecondPoint,
+    'multiPointTemplate': multiPointTemplate,
+    'noSurface': noSurface,
+    'btnUndo': btnUndo,
+    'btnReset': btnReset,
+    'btnConfirm': btnConfirm,
+    'totalPrefix': totalPrefix,
+    'segmentTemplate': segmentTemplate,
+    'errorDeviceUnsupported': errorDeviceUnsupported,
+    'errorApkTooOld': errorApkTooOld,
+    'errorSdkTooOld': errorSdkTooOld,
+    'errorSessionInit': errorSessionInit,
+    'errorCameraUnavailable': errorCameraUnavailable,
+  };
 }
 
 /// 네이티브 AR Activity 브랜드 컬러.
 class ArMeasureColors {
-  final String primary;   // 확인 버튼
+  final String primary; // 확인 버튼
   final String secondary; // 되돌리기/초기화 버튼
   final String onPrimary; // 버튼 전경색
 
@@ -101,16 +101,16 @@ class ArMeasureColors {
   });
 
   factory ArMeasureColors.fromAppColors(AppColors c) => ArMeasureColors(
-        primary: _toHex(c.primary),
-        secondary: _toHex(c.chipUnselected),
-        onPrimary: _toHex(c.onPrimary),
-      );
+    primary: _toHex(c.primary),
+    secondary: _toHex(c.chipUnselected),
+    onPrimary: _toHex(c.onPrimary),
+  );
 
   Map<String, String> toMap() => {
-        'primary': primary,
-        'secondary': secondary,
-        'onPrimary': onPrimary,
-      };
+    'primary': primary,
+    'secondary': secondary,
+    'onPrimary': onPrimary,
+  };
 
   static String _toHex(Color c) {
     final a = (c.a * 255).round() & 0xFF;
@@ -118,9 +118,9 @@ class ArMeasureColors {
     final g = (c.g * 255).round() & 0xFF;
     final b = (c.b * 255).round() & 0xFF;
     return '#${a.toRadixString(16).padLeft(2, '0')}'
-        '${r.toRadixString(16).padLeft(2, '0')}'
-        '${g.toRadixString(16).padLeft(2, '0')}'
-        '${b.toRadixString(16).padLeft(2, '0')}'
+            '${r.toRadixString(16).padLeft(2, '0')}'
+            '${g.toRadixString(16).padLeft(2, '0')}'
+            '${b.toRadixString(16).padLeft(2, '0')}'
         .toUpperCase();
   }
 }
@@ -191,15 +191,15 @@ class ArMeasure {
       if (context.mounted) await _showPermissionDeniedDialog(context);
     } on PlatformException {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.arMeasurementError)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l.arMeasurementError)));
       }
     } catch (_) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.arGeneralError)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l.arGeneralError)));
       }
     }
     return null;

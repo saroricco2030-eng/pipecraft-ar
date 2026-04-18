@@ -69,14 +69,22 @@ class _OffsetScreenState extends State<OffsetScreen> {
     final post = double.tryParse(_postCtrl.text);
 
     // 값 부재 or NaN/Infinity 방어
-    if (h == null || w == null || pre == null || post == null ||
-        !h.isFinite || !w.isFinite || !pre.isFinite || !post.isFinite) {
+    if (h == null ||
+        w == null ||
+        pre == null ||
+        post == null ||
+        !h.isFinite ||
+        !w.isFinite ||
+        !pre.isFinite ||
+        !post.isFinite) {
       setState(() => _result = null);
       return;
     }
     if (h <= 0) {
       setState(() => _result = null);
-      if (h < 0) _showValidationError(context.l10n.offsetValidationHeightPositive);
+      if (h < 0) {
+        _showValidationError(context.l10n.offsetValidationHeightPositive);
+      }
       return;
     }
     if (w < 0 || pre < 0 || post < 0) {
@@ -135,8 +143,10 @@ class _OffsetScreenState extends State<OffsetScreen> {
                 _stepsDone = [false, false, false, false, false];
               });
             },
-            child: Text(context.l10n.commonReset,
-                style: TextStyle(color: c.primary)),
+            child: Text(
+              context.l10n.commonReset,
+              style: TextStyle(color: c.primary),
+            ),
           ),
         ],
       ),
@@ -149,7 +159,11 @@ class _OffsetScreenState extends State<OffsetScreen> {
     final r = _result!;
     final setAngle = (_selectedAngle + _springBack).round();
     final text = context.l10n.offsetCopyText(
-        r.b1Insert.round(), r.b2Insert.round(), setAngle, r.totalLength.round());
+      r.b1Insert.round(),
+      r.b2Insert.round(),
+      setAngle,
+      r.totalLength.round(),
+    );
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -307,13 +321,26 @@ class _OffsetScreenState extends State<OffsetScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _buildMiniStat(l.offsetMiniStatSetAngle, '$setAngle°', c.accent, c),
+              _buildMiniStat(
+                l.offsetMiniStatSetAngle,
+                '$setAngle°',
+                c.accent,
+                c,
+              ),
               const SizedBox(width: 20),
               _buildMiniStat(
-                  l.offsetMiniStatSlope, '${r.offsetLength.round()}mm', c.text, c),
+                l.offsetMiniStatSlope,
+                '${r.offsetLength.round()}mm',
+                c.text,
+                c,
+              ),
               const SizedBox(width: 20),
               _buildMiniStat(
-                  l.offsetMiniStatTotal, '${r.totalLength.round()}mm', c.text, c),
+                l.offsetMiniStatTotal,
+                '${r.totalLength.round()}mm',
+                c.text,
+                c,
+              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -347,7 +374,12 @@ class _OffsetScreenState extends State<OffsetScreen> {
     );
   }
 
-  Widget _buildMiniStat(String label, String value, Color valueColor, AppColors c) {
+  Widget _buildMiniStat(
+    String label,
+    String value,
+    Color valueColor,
+    AppColors c,
+  ) {
     return RichText(
       text: TextSpan(
         children: [
@@ -479,7 +511,6 @@ class _OffsetScreenState extends State<OffsetScreen> {
     );
   }
 
-
   // ─── 입력 카드 ─────────────────────────────────────────
 
   Widget _buildInputCard(AppColors c) {
@@ -504,24 +535,40 @@ class _OffsetScreenState extends State<OffsetScreen> {
           Row(
             children: [
               Expanded(
-                  child: _inputField(
-                      context.l10n.offsetLabelObstacleHeight, _heightCtrl, c)),
+                child: _inputField(
+                  context.l10n.offsetLabelObstacleHeight,
+                  _heightCtrl,
+                  c,
+                ),
+              ),
               const SizedBox(width: 12),
               Expanded(
-                  child: _inputField(
-                      context.l10n.offsetLabelObstacleWidth, _widthCtrl, c)),
+                child: _inputField(
+                  context.l10n.offsetLabelObstacleWidth,
+                  _widthCtrl,
+                  c,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 16),
           Row(
             children: [
               Expanded(
-                  child: _inputField(
-                      context.l10n.offsetLabelPreClearance, _preCtrl, c)),
+                child: _inputField(
+                  context.l10n.offsetLabelPreClearance,
+                  _preCtrl,
+                  c,
+                ),
+              ),
               const SizedBox(width: 12),
               Expanded(
-                  child: _inputField(
-                      context.l10n.offsetLabelPostClearance, _postCtrl, c)),
+                child: _inputField(
+                  context.l10n.offsetLabelPostClearance,
+                  _postCtrl,
+                  c,
+                ),
+              ),
             ],
           ),
         ],
@@ -625,7 +672,11 @@ class _OffsetScreenState extends State<OffsetScreen> {
   // ─── 측면 다이어그램 ───────────────────────────────────
 
   Widget _buildOffsetDiagram(
-      OffsetResult r, double obsHeight, double obsWidth, AppColors c) {
+    OffsetResult r,
+    double obsHeight,
+    double obsWidth,
+    AppColors c,
+  ) {
     return Container(
       decoration: BoxDecoration(
         color: c.card,
@@ -718,7 +769,8 @@ class _OffsetScreenState extends State<OffsetScreen> {
       ..showSnackBar(
         SnackBar(
           content: Text(
-              l.offsetArAutoAppliedFormat(distance.round(), target.name)),
+            l.offsetArAutoAppliedFormat(distance.round(), target.name),
+          ),
           duration: const Duration(seconds: 4),
           action: SnackBarAction(
             label: l.commonChange,
@@ -790,33 +842,34 @@ class _OffsetScreenState extends State<OffsetScreen> {
                   ),
                 ),
                 Divider(height: 1, color: c.border),
-                ...fields.map((f) => ListTile(
-                      leading:
-                          Icon(Icons.straighten, size: 20, color: c.primary),
-                      title: Text(
-                        f.$1,
-                        style: TextStyle(
-                          fontFamily: 'DM Sans',
-                          fontSize: 15,
-                          color: c.text,
-                        ),
+                ...fields.map(
+                  (f) => ListTile(
+                    leading: Icon(Icons.straighten, size: 20, color: c.primary),
+                    title: Text(
+                      f.$1,
+                      style: TextStyle(
+                        fontFamily: 'DM Sans',
+                        fontSize: 15,
+                        color: c.text,
                       ),
-                      trailing: Text(
-                        f.$2.text.isEmpty ? '-' : '${f.$2.text} mm',
-                        style: TextStyle(
-                          fontFamily: 'DM Mono',
-                          fontSize: 13,
-                          color: c.text3,
-                        ),
+                    ),
+                    trailing: Text(
+                      f.$2.text.isEmpty ? '-' : '${f.$2.text} mm',
+                      style: TextStyle(
+                        fontFamily: 'DM Mono',
+                        fontSize: 13,
+                        color: c.text3,
                       ),
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        setState(() {
-                          f.$2.text = distance.round().toString();
-                        });
-                        _calculate();
-                      },
-                    )),
+                    ),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      setState(() {
+                        f.$2.text = distance.round().toString();
+                      });
+                      _calculate();
+                    },
+                  ),
+                ),
               ],
             ),
           ),
@@ -869,4 +922,3 @@ class _OffsetScreenState extends State<OffsetScreen> {
     );
   }
 }
-

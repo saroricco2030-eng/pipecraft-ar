@@ -91,7 +91,9 @@ class _ArScreenState extends State<ArScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(context.l10n.arConfirmClearAllTitle),
-        content: Text(context.l10n.arClearAllConfirmMessage(_measurements.length)),
+        content: Text(
+          context.l10n.arClearAllConfirmMessage(_measurements.length),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -104,13 +106,15 @@ class _ArScreenState extends State<ArScreen> {
               setState(() => _measurements.clear());
               _saveMeasurements();
             },
-            child: Text(context.l10n.commonDelete, style: TextStyle(color: c.primary)),
+            child: Text(
+              context.l10n.commonDelete,
+              style: TextStyle(color: c.primary),
+            ),
           ),
         ],
       ),
     );
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -127,7 +131,10 @@ class _ArScreenState extends State<ArScreen> {
             Container(
               width: 8,
               height: 8,
-              decoration: BoxDecoration(color: c.primary, shape: BoxShape.circle),
+              decoration: BoxDecoration(
+                color: c.primary,
+                shape: BoxShape.circle,
+              ),
             ),
             const SizedBox(width: 8),
             Text(
@@ -286,8 +293,11 @@ class _ArScreenState extends State<ArScreen> {
                 width: 48,
                 height: 48,
                 child: IconButton(
-                  icon: Icon(Icons.delete_outline_rounded,
-                      size: 20, color: c.text3),
+                  icon: Icon(
+                    Icons.delete_outline_rounded,
+                    size: 20,
+                    color: c.text3,
+                  ),
                   tooltip: context.l10n.commonDeleteTooltip,
                   onPressed: () => _deleteMeasurement(i),
                 ),
@@ -333,7 +343,9 @@ class _ArScreenState extends State<ArScreen> {
                 )
               : const Icon(Icons.camera_alt_outlined, size: 20),
           label: Text(
-            _measuring ? context.l10n.arMeasuringLabel : context.l10n.arStartMeasureButton,
+            _measuring
+                ? context.l10n.arMeasuringLabel
+                : context.l10n.arStartMeasureButton,
             style: const TextStyle(
               fontFamily: 'DM Sans',
               fontSize: 15,

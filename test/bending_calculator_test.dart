@@ -60,8 +60,11 @@ void main() {
     test('모든 관경/기기 조합이 유효한 스프링백을 가짐', () {
       for (final machine in Machine.values) {
         for (final od in pipeSpecs.keys) {
-          expect(springBack[machine]?[od], isNotNull,
-              reason: '${machine.label} / $od mm 스프링백 누락');
+          expect(
+            springBack[machine]?[od],
+            isNotNull,
+            reason: '${machine.label} / $od mm 스프링백 누락',
+          );
         }
       }
     });
@@ -83,8 +86,7 @@ void main() {
       expect(r.b1Insert, 150);
       expect(r.b2Insert, closeTo(150 + r.offsetLength, 0.1));
       // total = 150 + 141.42×2 + 50 + 150
-      expect(r.totalLength,
-          closeTo(150 + r.offsetLength * 2 + 50 + 150, 0.1));
+      expect(r.totalLength, closeTo(150 + r.offsetLength * 2 + 50 + 150, 0.1));
     });
 
     test('30° 오프셋 — offsetLength = h/sin(30°) = 2h', () {

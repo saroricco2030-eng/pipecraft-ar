@@ -16,9 +16,9 @@ enum Machine {
 /// 좁은 UI(설정 pill, 꺾기 카드)에서 사용할 짧은 모델명.
 extension MachineShortLabelX on Machine {
   String get shortLabel => switch (this) {
-        Machine.robend4000 => 'R4000',
-        Machine.remsCurvo => 'Curvo',
-      };
+    Machine.robend4000 => 'R4000',
+    Machine.remsCurvo => 'Curvo',
+  };
 }
 
 const Map<int, PipeSpec> pipeSpecs = {
@@ -31,20 +31,6 @@ const Map<int, PipeSpec> pipeSpecs = {
 };
 
 const Map<Machine, Map<int, double>> springBack = {
-  Machine.robend4000: {
-    15: 2,
-    19: 2,
-    22: 3,
-    25: 3,
-    28: 3,
-    35: 4,
-  },
-  Machine.remsCurvo: {
-    15: 2,
-    19: 2,
-    22: 2,
-    25: 3,
-    28: 3,
-    35: 4,
-  },
+  Machine.robend4000: {15: 2, 19: 2, 22: 3, 25: 3, 28: 3, 35: 4},
+  Machine.remsCurvo: {15: 2, 19: 2, 22: 2, 25: 3, 28: 3, 35: 4},
 };
