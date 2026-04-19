@@ -1,0 +1,13 @@
+# Branches excluded from tools/scan-orphan-fixes.sh.
+#
+# Syntax: one branch name per line (local or origin/-prefixed both work).
+# Glob patterns allowed. Lines starting with # are comments.
+# See docs/BRANCH_WORKFLOW.md §9 for details.
+
+# Dependabot branches — auto-PR'd already, no human action needed:
+dependabot/**
+
+# Add here any branches that have been squash-merged via PR (git
+# can't auto-detect patch equivalence after squash):
+# claude/old-feature-branch
+# fix/resolved-long-ago
